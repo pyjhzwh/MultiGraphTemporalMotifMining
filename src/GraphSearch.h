@@ -107,6 +107,35 @@ public:
     long long int preprocess_sampling_weights(
         std::vector<int>& sampling_weights, std::vector<std::vector<std::vector<int>::const_iterator>>& sampling_neigh_edges_it);
 
+    std::vector<float> sixNode112PathSample(
+        const Graph &g, int num_of_threads=1, int partition_per_thread=1,
+        int delta = INT_MAX, long long int max_trial = 2e5);
+
+    long long int sixNode112PreprocessSamplingWeights(
+        std::vector<int>& e1_sampling_weights,
+        std::vector<int>& e3_sampling_weights,
+        std::vector<int>& u_sampling_weights,
+        std::vector<int>& v_sampling_weights,
+        std::vector<int>& e2_sampling_weights);
+    
+    std::vector<long long int> sixNode112SampleAndCheckMotif(
+        long long int max_trial,
+        std::discrete_distribution<>& e1_weights_distr,
+        std::vector<int>& e1_sampling_weights,
+        std::vector<int>& e3_sampling_weights
+        );
+
+    bool sample112(
+        std::mt19937& eng,
+        std::discrete_distribution<>& e2_weights_distr,
+        std::vector<int>& e1_sampling_weights,
+        std::vector<int>& e3_sampling_weights,
+        std::vector<Edge>& sampled_edges
+        );
+
+    std::vector<long long int> check_motif112(std::vector<Edge> &sampled_edges);
+    std::vector<float> estimate_motif_general(const std::vector<long long int> &motifs_cnts, int num_sample, long long int W);
+
 private:
     /** Creates map of which nodes in G can map to the nodes we are searching for from H */
     std::vector<std::unordered_set<int>> mapPossibleNodes();

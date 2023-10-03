@@ -118,36 +118,20 @@ int main(int argc, char **argv)
             }
             cout << "Running in " << num_of_threads << " threads" << endl;
             omp_set_num_threads(num_of_threads);
-            if(algo == 1)
-            {
-                cout << "========== TEACUPS 3 path sampling (M1-M7) ==========" << endl;
-                const long long int max_trial = args.max_trial();
-                cout << "max_trial: " << max_trial << endl;
-                vector<float> results;
-                Timer t;
-                double avg_time;
-                t.Start();
-                results = search.threePathSample(g, num_of_threads, PARTITION_PER_THREAD, delta, max_trial);
-                t.Stop();
-                avg_time += t.Millisecs();
-                for (int i = 1; i < results.size(); i++)
-                    cout << "M" << i << ": " << results[i] << ", ";
-                cout << endl;
-                std::cout << "total time searchPB.findOrderedSubgraphs (ms) is: " << avg_time << " ms." << std::endl;
-            }
-            else if(algo == 2)
-            {
-                cout << "========== TEACUPS 3 star (M0) ==========" << endl;
-                long long int results;
-                Timer t;
-                double avg_time;
-                t.Start();
-                results = search.count3Star(g, num_of_threads, PARTITION_PER_THREAD, delta);
-                t.Stop();
-                avg_time += t.Millisecs();
-                cout << "M0: " << results << endl;
-                std::cout << "total time search.count3Star (ms) is: " << avg_time << " ms." << std::endl;
-            }
+            cout << "========== 112 5-node spanning tree sampling ==========" << endl;
+            const long long int max_trial = args.max_trial();
+            cout << "max_trial: " << max_trial << endl;
+            vector<float> results;
+            Timer t;
+            double avg_time = 0;
+            t.Start();
+            results = search.sixNode112PathSample(g, num_of_threads, PARTITION_PER_THREAD, delta, max_trial);
+            t.Stop();
+            avg_time += t.Millisecs();
+            for (int i = 0; i < results.size(); i++)
+                cout << "M" << i << ": " << results[i] << ", ";
+            cout << endl;
+            std::cout << "total time searchPB.findOrderedSubgraphs (ms) is: " << avg_time << " ms." << std::endl;
         }
         if (args.verbose())
             cout << "Done!\n"
