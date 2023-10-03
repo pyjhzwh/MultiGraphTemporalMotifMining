@@ -1364,7 +1364,6 @@ bool GraphSearch::sample112(
 
     /* Sample e2  using e2_weights_distr */
     int e2_id = e2_weights_distr(eng);
-    cout << "e2_id: " << e2_id << endl;
     Edge e2 = _g->edges()[e2_id];
     int u = e2.source();
     int v = e2.dest();
@@ -1386,7 +1385,6 @@ bool GraphSearch::sample112(
     int num_u_in_edges = distance(u_in_edges_left_it, u_in_edges_right_it);
     if (num_u_in_edges == 0)
         return false;
-    cout << "num_u_in_edges: " << num_u_in_edges << endl;
     vector<int> cur_e1_weights(num_u_in_edges, 0);
     for(int i = 0; i < cur_e1_weights.size(); i++)
     {
@@ -1394,7 +1392,6 @@ bool GraphSearch::sample112(
     }
     discrete_distribution<> e1_weights_distr(cur_e1_weights.begin(), cur_e1_weights.end());
     int e1_id = *(u_in_edges_left_it + e1_weights_distr(eng));
-    cout << "e1_id: " << e1_id << endl;
     Edge e1 = _g->edges()[e1_id];
     int u_prime = e1.source();
     if ((u_prime == u) || (u_prime == v))
@@ -1417,7 +1414,6 @@ bool GraphSearch::sample112(
         return false;
     int u_prime_in_edges_randidx = rand_r(&seed) % num_u_prime_in_edges;
     int e0_id = *(u_prime_in_edges_left_it + u_prime_in_edges_randidx);
-    cout << "e0_id: " << e0_id << endl;
     // check if u'->u edge meets requirement
     Edge e0 = _g->edges()[e0_id];
     int w = e0.source();
@@ -1441,19 +1437,15 @@ bool GraphSearch::sample112(
     );
     // sample v->v' edge from all out edges of v within delta timestamp constraints
     int num_v_out_edges = distance(v_out_edges_left_it, v_out_edges_right_it);
-    cout << "num_v_out_edges: " << num_v_out_edges << endl;
     if (num_v_out_edges == 0)
         return false;
-    vector<int> cur_e3_weights(num_v_out_edges);
-    for(int i = 0; i < cur_e1_weights.size(); i++)
+    vector<int> cur_e3_weights(num_v_out_edges, 0);
+    for(int i = 0; i < cur_e3_weights.size(); i++)
     {
         cur_e3_weights[i] = e3_sampling_weights[*(v_out_edges_left_it+i)];
-        cout << cur_e3_weights[i] << ", ";
     }
-    cout << endl;
     discrete_distribution<> e3_weights_distr(cur_e3_weights.begin(), cur_e3_weights.end());
     int e3_id = *(v_out_edges_left_it + e3_weights_distr(eng));
-    cout << "e3_id: " << e3_id << endl;
     Edge e3 = _g->edges()[e3_id];
     int v_prime = e3.dest();
     if ((v_prime == u) || (v_prime == v) || (v_prime == u_prime) || (v_prime == w))
@@ -1476,7 +1468,6 @@ bool GraphSearch::sample112(
         return false;
     int v_prime_out_edges_randidx = rand_r(&seed) % num_v_prime_out_edges;
     int e4_id = *(v_prime_out_edges_left_it + v_prime_out_edges_randidx);
-    cout << "e4_id: " << e4_id << endl;
     // check if u'->u edge meets requirement
     Edge e4 = _g->edges()[e4_id];
     int s = e4.dest();
