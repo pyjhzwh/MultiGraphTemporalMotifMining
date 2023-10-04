@@ -126,6 +126,7 @@ public:
         );
 
     bool sample112(
+        int iter,
         std::mt19937& eng,
         std::discrete_distribution<>& e2_weights_distr,
         std::vector<int>& e1_sampling_weights,
