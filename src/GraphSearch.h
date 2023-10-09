@@ -112,25 +112,23 @@ public:
         int delta = INT_MAX, long long int max_trial = 2e5);
 
     long long int sixNode112PreprocessSamplingWeights(
-        std::vector<int>& e1_sampling_weights,
-        std::vector<int>& e3_sampling_weights,
-        std::vector<int>& u_sampling_weights,
-        std::vector<int>& v_sampling_weights,
-        std::vector<int>& e2_sampling_weights);
+        std::vector<long long int>& e1_sampling_weights,
+        std::vector<long long int>& e3_sampling_weights,
+        std::vector<long long int>& e2_sampling_weights);
     
     std::vector<long long int> sixNode112SampleAndCheckMotif(
         long long int max_trial,
-        std::discrete_distribution<>& e1_weights_distr,
-        std::vector<int>& e1_sampling_weights,
-        std::vector<int>& e3_sampling_weights
+        std::discrete_distribution<>& e2_weights_distr,
+        std::vector<long long int>& e1_sampling_weights,
+        std::vector<long long int>& e3_sampling_weights
         );
 
     bool sample112(
         int iter,
         std::mt19937& eng,
         std::discrete_distribution<>& e2_weights_distr,
-        std::vector<int>& e1_sampling_weights,
-        std::vector<int>& e3_sampling_weights,
+        std::vector<long long int>& e1_sampling_weights,
+        std::vector<long long int>& e3_sampling_weights,
         std::vector<Edge>& sampled_edges
         );
 

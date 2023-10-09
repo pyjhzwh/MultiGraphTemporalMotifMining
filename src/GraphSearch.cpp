@@ -1356,8 +1356,8 @@ bool GraphSearch::sample112(
     int iter,
     mt19937& eng,
     discrete_distribution<>& e2_weights_distr,
-    vector<int>& e1_sampling_weights,
-    vector<int>& e3_sampling_weights,
+    vector<long long int>& e1_sampling_weights,
+    vector<long long int>& e3_sampling_weights,
     vector<Edge>& sampled_edges)
 {
     unsigned int seed = time(NULL) ^ omp_get_thread_num() ^ static_cast<unsigned int>(iter);
@@ -1375,26 +1375,25 @@ bool GraphSearch::sample112(
     /* Sample e1 in [t_e2 - delta, t_e2] from inEdges(u) using e1_sampling_weights */
     // u_in_edges.index() < e2.index()
     const vector<int>& u_in_edges = _g->nodes()[u].inEdges();
-    // vector<int>::const_iterator u_in_edges_right_it = lower_bound(
-    //     u_in_edges.begin(), u_in_edges.end(), e2.index()
-    // );
-    // // u_in_edges.time() >= e2.time() - _delta
-    // vector<int>::const_iterator u_in_edges_left_it = lower_bound(
-    //     u_in_edges.begin(), u_in_edges.end(), e2.time() - _delta,
-    //     [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
-    // );
-    // // sample u'->u edge from all in edges of u within delta timestamp constraints
-    // int num_u_in_edges = distance(u_in_edges_left_it, u_in_edges_right_it);
-    // if (num_u_in_edges == 0)
-    //     return false;
-    vector<int> cur_e1_weights(u_in_edges.size(), 0);
+    vector<int>::const_iterator u_in_edges_right_it = lower_bound(
+        u_in_edges.begin(), u_in_edges.end(), e2.index()
+    );
+    // u_in_edges.time() >= e2.time() - _delta
+    vector<int>::const_iterator u_in_edges_left_it = lower_bound(
+        u_in_edges.begin(), u_in_edges.end(), e2.time() - _delta,
+        [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+    );
+    // sample u'->u edge from all in edges of u within delta timestamp constraints
+    int num_u_in_edges = distance(u_in_edges_left_it, u_in_edges_right_it);
+    if (num_u_in_edges == 0)
+        return false;
+    vector<int> cur_e1_weights(num_u_in_edges, 0);
     for(int i = 0; i < cur_e1_weights.size(); i++)
     {
-        cur_e1_weights[i] = e1_sampling_weights[u_in_edges[i]];
+        cur_e1_weights[i] = e1_sampling_weights[*(u_in_edges_left_it+i)];
     }
     discrete_distribution<> e1_weights_distr(cur_e1_weights.begin(), cur_e1_weights.end());
-    int e1_id = u_in_edges[e1_weights_distr(eng)];
-    // int e1_id = u_in_edges[rand_r(&seed) % u_in_edges.size()];
+    int e1_id = *(u_in_edges_left_it + e1_weights_distr(eng));
     // cout << "e1_id: " << e1_id << endl;
     Edge e1 = _g->edges()[e1_id];
     int u_prime = e1.source();
@@ -1410,7 +1409,7 @@ bool GraphSearch::sample112(
     vector<int>::const_iterator u_prime_in_edges_right_it = lower_bound(
         u_prime_in_edges.begin(), u_prime_in_edges.end(), e1.index()
     );
-    // u_prime_in_edges.time() >= e2.time() - _delta
+    // u_prime_in_edges.time() >= e1.time() - _delta
     vector<int>::const_iterator u_prime_in_edges_left_it = lower_bound(
         u_prime_in_edges.begin(), u_prime_in_edges.end(), e1.time() - _delta,
         [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
@@ -1433,34 +1432,34 @@ bool GraphSearch::sample112(
         return false;
     sampled_edges[0] = e0;
 
-    // /* Sample e3 in [t_e2, t_e0 + delta] from outEdges(v) using e3_sampling_weights */
+    // /* Sample e3 in [t_e2, t_e2 + delta] from outEdges(v) using e3_sampling_weights */
     const vector<int>& v_out_edges = _g->nodes()[v].outEdges();
-    // // v_out_edges.index() > e2.index()
-    // vector<int>::const_iterator v_out_edges_left_it = upper_bound(
-    //     v_out_edges.begin(), v_out_edges.end(), e2.index()
-    // );
-    // // v_out_edges.time() <= e0.time() + _delta
-    // vector<int>::const_iterator v_out_edges_right_it = upper_bound(
-    //     v_out_edges.begin(), v_out_edges.end(), e0.time() + _delta,
-    //     [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
-    // );
-    // // sample v->v' edge from all out edges of v within delta timestamp constraints
-    // int num_v_out_edges = distance(v_out_edges_left_it, v_out_edges_right_it);
-    // if (num_v_out_edges == 0)
-    //     return false;
-    vector<int> cur_e3_weights(v_out_edges.size(), 0);
+    // v_out_edges.index() > e2.index()
+    vector<int>::const_iterator v_out_edges_left_it = upper_bound(
+        v_out_edges.begin(), v_out_edges.end(), e2.index()
+    );
+    // v_out_edges.time() <= e2.time() + _delta
+    vector<int>::const_iterator v_out_edges_right_it = upper_bound(
+        v_out_edges.begin(), v_out_edges.end(), e2.time() + _delta,
+        [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
+    );
+    // sample v->v' edge from all out edges of v within delta timestamp constraints
+    int num_v_out_edges = distance(v_out_edges_left_it, v_out_edges_right_it);
+    if (num_v_out_edges == 0)
+        return false;
+    vector<int> cur_e3_weights(num_v_out_edges, 0);
     for(int i = 0; i < cur_e3_weights.size(); i++)
     {
-        cur_e3_weights[i] = e3_sampling_weights[v_out_edges[i]];
+        cur_e3_weights[i] = e3_sampling_weights[*(v_out_edges_left_it + i)];
     }
     discrete_distribution<> e3_weights_distr(cur_e3_weights.begin(), cur_e3_weights.end());
-    int e3_id = v_out_edges[e3_weights_distr(eng)];
+    int e3_id = *(v_out_edges_left_it + e3_weights_distr(eng));
     // cout << "e3_id: " << e3_id << endl;
     Edge e3 = _g->edges()[e3_id];
     int v_prime = e3.dest();
     if ((v_prime == u) || (v_prime == v) || (v_prime == u_prime) || (v_prime == w))
         return false;
-    if (e3_id < e2_id || e3.time() > e0.time() + _delta)
+    if (e3.time() > e0.time() + _delta)
         return false;
     sampled_edges[3] = e3;
 
@@ -1470,7 +1469,7 @@ bool GraphSearch::sample112(
     vector<int>::const_iterator v_prime_out_edges_left_it = upper_bound(
         v_prime_out_edges.begin(), v_prime_out_edges.end(), e3.index()
     );
-    // v_prime_out_edges.time() <= e0.time() + _delta
+    // v_prime_out_edges.time() <= e3.time() + _delta
     vector<int>::const_iterator v_prime_out_edges_right_it = upper_bound(
         v_prime_out_edges.begin(), v_prime_out_edges.end(), e3.time() + _delta,
         [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
@@ -1515,8 +1514,8 @@ vector<long long int> GraphSearch::check_motif112(vector<Edge> &sampled_edges)
 vector<long long int> GraphSearch::sixNode112SampleAndCheckMotif(
     long long int max_trial,
     discrete_distribution<>& e2_weights_distr,
-    vector<int>& e1_sampling_weights,
-    vector<int>& e3_sampling_weights
+    vector<long long int>& e1_sampling_weights,
+    vector<long long int>& e3_sampling_weights
     )
 {
     random_device rd;
@@ -1546,18 +1545,16 @@ vector<long long int> GraphSearch::sixNode112SampleAndCheckMotif(
 
 
 long long int GraphSearch::sixNode112PreprocessSamplingWeights(
-    vector<int>& e1_sampling_weights,
-    vector<int>& e3_sampling_weights,
-    vector<int>& u_sampling_weights,
-    vector<int>& v_sampling_weights,
-    vector<int> & e2_sampling_weights
+    vector<long long int>& e1_sampling_weights,
+    vector<long long int>& e3_sampling_weights,
+    vector<long long int>& e2_sampling_weights
     )
 {
     /*
     e1_sampling_weights, e3_sampling_wegiths ensure that the timestamp
     e0 <= e1 <= e0+delta; e3 <= e4 <= e3+delta
-    u_sampling_weights, v_sampling_weights are the vertex-based sampling weight
-    e2_sampling_weights does not ensure thr e1, e2, e3 relationship, or the
+    e2_sampling_weights ensure that the timesamp
+    e1 <= e2 <= e1+delta; e2 <= e3 <= e2+delta
     */
     long long int W = 0;
 
@@ -1582,8 +1579,7 @@ long long int GraphSearch::sixNode112PreprocessSamplingWeights(
             [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
         );
         int num_e_src_in_edges = distance(e_src_in_edges_left_it, e_src_in_edges_right_it);
-        e1_sampling_weights[i] = num_e_src_in_edges;
-        u_sampling_weights[e_dst] += num_e_src_in_edges;
+        e1_sampling_weights[i] = (long long int) num_e_src_in_edges;
         
         // e_dst_out_edges.index() > e.index()
         vector<int>::const_iterator e_dst_out_edges_left_it = upper_bound(
@@ -1595,8 +1591,7 @@ long long int GraphSearch::sixNode112PreprocessSamplingWeights(
             [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
         );
         int num_e_dst_out_edges = distance(e_dst_out_edges_left_it, e_dst_out_edges_right_it);
-        e3_sampling_weights[i] =  num_e_dst_out_edges;
-        v_sampling_weights[e_src] += num_e_dst_out_edges;
+        e3_sampling_weights[i] =  (long long int) num_e_dst_out_edges;
     }
 
     #pragma omp parallel for reduction(+:W)
@@ -1608,8 +1603,42 @@ long long int GraphSearch::sixNode112PreprocessSamplingWeights(
         if (u == v)
             e2_sampling_weights[i] = 0;
         else
-            e2_sampling_weights[i] = u_sampling_weights[u] * v_sampling_weights[v];
-        W += e2_sampling_weights[i];
+        {
+            const vector<int>& e_src_in_edges = _g->nodes()[u].inEdges();
+            const vector<int>& e_dst_out_edges = _g->nodes()[v].outEdges();
+            // e_src_in_edges.index() < e2.index()
+            vector<int>::const_iterator e_src_in_edges_right_it = lower_bound(
+                e_src_in_edges.begin(), e_src_in_edges.end(), e2.index()
+            );
+            // e_src_in_edges.time() >= e2.time() - _delta
+            vector<int>::const_iterator e_src_in_edges_left_it = lower_bound(
+                e_src_in_edges.begin(), e_src_in_edges.end(), e2.time() - _delta,
+                [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+            );
+            long long int e2_u_weight = 0;
+            for(vector<int>::const_iterator it = e_src_in_edges_left_it; it != e_src_in_edges_right_it; it++)
+            {
+                e2_u_weight += e1_sampling_weights[*it];
+            }
+
+            // e_dst_out_edges.index() > e2.index()
+            vector<int>::const_iterator e_dst_out_edges_left_it = upper_bound(
+                e_dst_out_edges.begin(), e_dst_out_edges.end(), e2.index()
+            );
+            // e_dst_out_edges.time() <= e2.time() + _delta
+            vector<int>::const_iterator e_dst_out_edges_right_it = upper_bound(
+                e_dst_out_edges.begin(), e_dst_out_edges.end(), e2.time() + _delta,
+                [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
+            );
+
+            long long int e2_v_weight = 0;
+            for(vector<int>::const_iterator it = e_dst_out_edges_left_it; it != e_dst_out_edges_right_it; it++)
+            {
+                e2_v_weight += e3_sampling_weights[*it];
+            }
+            e2_sampling_weights[i] = e2_u_weight * e2_v_weight;
+            W += e2_sampling_weights[i];
+        }
     }
     return W;
 }
@@ -1649,14 +1678,12 @@ vector<float> GraphSearch::sixNode112PathSample(const Graph &g,
     // motifs counts
     vector<long long int> motifs_cnts(1, 0);
 
-    vector<int> e1_sampling_weights(_g->numEdges(), 0);
-    vector<int> e2_sampling_weights(_g->numEdges(), 0);
-    vector<int> e3_sampling_weights(_g->numEdges(), 0);
-    vector<int> u_sampling_weights(_g->numNodes(), 0);
-    vector<int> v_sampling_weights(_g->numNodes(), 0);
+    vector<long long int> e1_sampling_weights(_g->numEdges(), 0);
+    vector<long long int> e2_sampling_weights(_g->numEdges(), 0);
+    vector<long long int> e3_sampling_weights(_g->numEdges(), 0);
 
     W = sixNode112PreprocessSamplingWeights(
-        e1_sampling_weights, e3_sampling_weights, u_sampling_weights, v_sampling_weights, e2_sampling_weights);
+        e1_sampling_weights, e3_sampling_weights, e2_sampling_weights);
 
     cout << "W: " << W << endl;
     // cout << "e2_sampling_weights: ";
