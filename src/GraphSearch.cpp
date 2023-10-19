@@ -1496,17 +1496,51 @@ bool GraphSearch::sample112(
 
 vector<long long int> GraphSearch::check_motif112(vector<Edge> &sampled_edges)
 {
-    vector<long long int> motifs_cnts(1, 0);
-    Edge u_v_edge = sampled_edges[0];
+    vector<long long int> motifs_cnts(2, 0);
+    Edge u_v_edge = sampled_edges[2];
     Edge u_in_edge = sampled_edges[1];
-    Edge v_out_edge = sampled_edges[2];
+    Edge v_out_edge = sampled_edges[3];
+    Edge w_u_prime_edge = sampled_edges[0];
+    Edge v_prime_s_edge = sampled_edges[4];
     int u = u_v_edge.source();
     int v = u_v_edge.dest();
     int u_prime = u_in_edge.source();
     int v_prime = v_out_edge.dest();
+    int w = w_u_prime_edge.source();
+    int s = v_prime_s_edge.dest();
+
+    bool u_w_exist = false;
+    vector<int>::iterator w_u_edges_left_it;
+    vector<int>::iterator w_u_edges_right_it;
 
     // M1: 3-path
     motifs_cnts[0] = 1;
+
+    // M2: 3-tailed triangle
+    // u->w t0
+    if (_g->nodeEdges().find(u) != _g->nodeEdges().end())
+    {
+        if(_g->nodeEdges()[u].find(w) != _g->nodeEdges()[u].end())
+        {
+            u_w_exist = true;
+            vector<int> &u_w_edges_ids = _g->nodeEdges()[u][w];
+            // find idx < w_u_prime_edge.index()
+            w_u_edges_right_it = lower_bound(
+                u_w_edges_ids.begin(), u_w_edges_ids.end(), w_u_prime_edge.index()
+            );
+            // find timestamp >= v_prime_s_edge.time() - _delta
+            w_u_edges_left_it = lower_bound(
+                u_w_edges_ids.begin(), u_w_edges_ids.end(), v_prime_s_edge.time() - _delta,
+                [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+            );
+            int u_w_edges_num = distance(w_u_edges_left_it, w_u_edges_right_it);
+            if (u_w_edges_num > 0) {
+                motifs_cnts[1] = u_w_edges_num;
+            }
+        }
+    }
+            
+    
 
     return motifs_cnts;
 }
@@ -1521,7 +1555,7 @@ vector<long long int> GraphSearch::sixNode112SampleAndCheckMotif(
     random_device rd;
     mt19937 eng(rd() ^ omp_get_thread_num());
 
-    vector<long long int> motifs_cnts(1, 0);
+    vector<long long int> motifs_cnts(2, 0);
 
     for(long long int trial=0; trial < max_trial; trial++)
     {
@@ -1676,7 +1710,7 @@ vector<float> GraphSearch::sixNode112PathSample(const Graph &g,
     long long int W = 0;
 
     // motifs counts
-    vector<long long int> motifs_cnts(1, 0);
+    vector<long long int> motifs_cnts(2, 0);
 
     vector<long long int> e1_sampling_weights(_g->numEdges(), 0);
     vector<long long int> e2_sampling_weights(_g->numEdges(), 0);
