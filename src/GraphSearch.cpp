@@ -1753,8 +1753,38 @@ vector<float> GraphSearch::sixNode112PathSample(const Graph &g,
     // cout << endl;
     discrete_distribution<> e2_weights_distr(e2_sampling_weights.begin(), e2_sampling_weights.end());
 
-    motifs_cnts = sixNode112SampleAndCheckMotif(
-        max_trial, e2_weights_distr, e1_sampling_weights, e3_sampling_weights);
+    if (num_of_threads > 1)
+    {
+        // prepare omp
+        // trial number for each thread and partition
+        long long int single_trial_num = (max_trial + num_of_threads * partition_per_thread - 1) / (num_of_threads * partition_per_thread);
+        // the last trial may has less trial_num than others
+        long long int last_trial_num = max_trial - single_trial_num * (num_of_threads * partition_per_thread - 1);
+        vector<vector<long long int>> trial_motifs_cnts(num_of_threads * partition_per_thread, vector<long long int>{});
+        // trial_motifs_cnts[i][j] , i the parition i, j is the jth motif count
+
+        #pragma omp parallel for schedule(dynamic, 1)
+        for (int i = 0; i < num_of_threads * partition_per_thread; i++)
+        {
+            int trial_num = single_trial_num;
+            if (i == num_of_threads * partition_per_thread - 1)
+                trial_num = last_trial_num;
+            trial_motifs_cnts[i] = (sixNode112SampleAndCheckMotif(trial_num, e2_weights_distr, e1_sampling_weights, e3_sampling_weights));
+        }
+
+        for(int i = 0; i < motifs_cnts.size(); i++)
+        {
+            for (int j = 0; j < num_of_threads * partition_per_thread; j++)
+            {
+                motifs_cnts[i] += trial_motifs_cnts[j][i];
+            }
+        }
+    }
+
+    else{
+        motifs_cnts = sixNode112SampleAndCheckMotif(
+            max_trial, e2_weights_distr, e1_sampling_weights, e3_sampling_weights);
+    }
 
     cout << "motifs_cnts: " << motifs_cnts[0] << endl;
     cout << "motifs_cnts: " << motifs_cnts[1] << endl;
