@@ -133,7 +133,8 @@ public:
         );
 
     std::vector<long long int> check_motif112(std::vector<Edge> &sampled_edges);
-    std::vector<float> estimate_motif_general(const std::vector<long long int> &motifs_cnts, int num_sample, long long int W);
+    std::vector<float> estimate_motif_general(
+        const std::vector<long long int> &motifs_cnts, long long int num_sample, long long int W);
 
 private:
     /** Creates map of which nodes in G can map to the nodes we are searching for from H */

@@ -1702,7 +1702,7 @@ long long int GraphSearch::sixNode112PreprocessSamplingWeights(
     return W;
 }
 
-vector<float> GraphSearch::estimate_motif_general(const vector<long long int> &motifs_cnts, int num_sample, long long int W)
+vector<float> GraphSearch::estimate_motif_general(const vector<long long int> &motifs_cnts, long long int num_sample, long long int W)
 {
     vector<float> estimated_cnts(motifs_cnts.size(), 0);
     float_t W_div_k = (float_t) W / num_sample;

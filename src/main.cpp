@@ -103,9 +103,9 @@ int main(int argc, char **argv)
                 else
                     results = search.findOrderedSubgraphs(g2, h, criteria, limit, delta);
                 t.Stop();
-                avg_time += t.Millisecs();
+                avg_time += t.Seconds();
                 cout << "count for " << queryFname << " : " << results << endl;
-                std::cout << "total time search.findOrderedSubgraphs (ms) is: " << avg_time << " ms." << std::endl;
+                std::cout << "total time search.findOrderedSubgraphs (s) is: " << avg_time << " s." << std::endl;
             }
         }
         else
@@ -127,11 +127,11 @@ int main(int argc, char **argv)
             t.Start();
             results = search.sixNode112PathSample(g, num_of_threads, PARTITION_PER_THREAD, delta, max_trial);
             t.Stop();
-            avg_time += t.Millisecs();
+            avg_time += t.Seconds();
             for (int i = 0; i < results.size(); i++)
                 cout << "M" << i << ": " << results[i] << ", ";
             cout << endl;
-            std::cout << "total time searchPB.findOrderedSubgraphs (ms) is: " << avg_time << " ms." << std::endl;
+            std::cout << "total time searchPB.findOrderedSubgraphs (s) is: " << avg_time << " s." << std::endl;
         }
         if (args.verbose())
             cout << "Done!\n"
