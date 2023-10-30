@@ -17,6 +17,7 @@
 #include <tuple>
 #include <random>
 #include <functional>
+#include <memory>
 #include "GraphMatch.h"
 
 /**
@@ -139,15 +140,51 @@ public:
     
     std::vector<long long int> sixNode112SampleAndCheckMotif(
         long long int max_trial,
-        std::discrete_distribution<>& e2_weights_distr,
+        std::unique_ptr<std::discrete_distribution<>>& e2_weights_distr,
         std::vector<long long int>& e1_sampling_weights,
         std::vector<long long int>& e3_sampling_weights
+        );
+
+    bool sample108(
+        int iter,
+        std::mt19937& eng,
+        std::unique_ptr<std::discrete_distribution<>>& e3_weights_distr,
+        std::vector<long long int>& ei_sampling_weights,
+        std::vector<long long int>& ej_sampling_weights,
+        std::vector<Edge>& sampled_edges
+        );
+
+    bool sample109(
+        int iter,
+        std::mt19937& eng,
+        std::unique_ptr<std::discrete_distribution<>>& e3_weights_distr,
+        std::vector<long long int>& ei_sampling_weights,
+        std::vector<long long int>& ej_sampling_weights,
+        std::vector<Edge>& sampled_edges
+        );
+
+    bool sample110(
+        int iter,
+        std::mt19937& eng,
+        std::unique_ptr<std::discrete_distribution<>>& e1_weights_distr,
+        std::vector<long long int>& ei_sampling_weights,
+        std::vector<long long int>& e3_sampling_weights,
+        std::vector<Edge>& sampled_edges
+        );
+
+    bool sample111(
+        int iter,
+        std::mt19937& eng,
+        std::unique_ptr<std::discrete_distribution<>>& e2_weights_distr,
+        std::vector<long long int>& ei_sampling_weights,
+        std::vector<long long int>& e3_sampling_weights,
+        std::vector<Edge>& sampled_edges
         );
 
     bool sample112(
         int iter,
         std::mt19937& eng,
-        std::discrete_distribution<>& e2_weights_distr,
+        std::unique_ptr<std::discrete_distribution<>>& e2_weights_distr,
         std::vector<long long int>& e1_sampling_weights,
         std::vector<long long int>& e3_sampling_weights,
         std::vector<Edge>& sampled_edges
@@ -164,6 +201,17 @@ public:
             { 111, std::bind(&GraphSearch::sixNode111PreprocessSamplingWeights, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
             { 112, std::bind(&GraphSearch::sixNode112PreprocessSamplingWeights, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
         };
+
+    std::map<int,std::function<bool(
+        int, std::mt19937&, std::unique_ptr<std::discrete_distribution<>>&,
+        std::vector<long long int>&, std::vector<long long int>&, std::vector<Edge>&)>> sample_funcs {
+            { 108, std::bind(&GraphSearch::sample108, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
+            { 109, std::bind(&GraphSearch::sample109, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
+            { 110, std::bind(&GraphSearch::sample110, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
+            { 111, std::bind(&GraphSearch::sample111, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
+            { 112, std::bind(&GraphSearch::sample112, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
+        };
+    
 
 private:
     /** Creates map of which nodes in G can map to the nodes we are searching for from H */
@@ -206,6 +254,9 @@ private:
     // count 3-star
     long long int count_stars(int delta, int id_begin, int id_end);
     long long int count_stars_multi_thread(int delta, int num_of_threads, int partition_per_thread);
+
+    // helper function of find duplicates
+    bool containDuplicates(std::vector<int> list);
 
     // Private data members
     const Graph *_g, *_h;
