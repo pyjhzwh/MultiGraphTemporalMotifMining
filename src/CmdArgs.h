@@ -25,6 +25,7 @@ public:
     bool need_h() const { return _need_h; }
     const long long int max_trial() const { return _max_trial; }
     int algorithm() const{ return _algo; }
+    int spanning_tree_no() const { return _spanning_tree_no; }
     void dispHelp() const;
      /** Parses the time in the string as seconds. Makes putting in long durations
      * less painful on the command line.
@@ -53,7 +54,7 @@ private:
     std::vector<std::string> _queryFnames; // _outFnames;
     time_t _delta;
     bool _success, _unordered, _verbose;
-    int _algo;
+    int _algo, _spanning_tree_no;
     long long int _max_trial;
     bool _need_h; // if query file is needed (true if algo=0, false otherwise)
 };

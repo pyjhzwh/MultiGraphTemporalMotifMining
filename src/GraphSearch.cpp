@@ -1603,10 +1603,297 @@ vector<long long int> GraphSearch::sixNode112SampleAndCheckMotif(
 }
 
 
+long long int GraphSearch::sixNode108PreprocessSamplingWeights(
+    vector<long long int>& e1_sampling_weights,
+    vector<long long int>& e2_sampling_weights,
+    vector<long long int>& e3_sampling_weights
+    )
+{
+    /*
+    e3 - delta <= e0, e1, e2 <= e3
+    e3 <= e4 <= e3 + delta 
+    */
+    e3_sampling_weights.assign(_g->numEdges(), 0);
+    long long int W = 0;
+
+    #pragma omp parallel for reduction(+:W)
+    for(int i = 0; i < _g->numEdges(); i++)
+    {
+        Edge e = _g->edges()[i];
+        int e_src = e.source();
+        int e_dst = e.dest();
+        if(e_src == e_dst){
+            continue;
+        }
+        const vector<int>& e_src_in_edges = _g->nodes()[e_src].inEdges();
+        const vector<int>& e_dst_out_edges = _g->nodes()[e_dst].outEdges();
+        // e_src_in_edges.index() < e.index()
+        vector<int>::const_iterator e_src_in_edges_right_it = lower_bound(
+            e_src_in_edges.begin(), e_src_in_edges.end(), e.index()
+        );
+        // e_src_in_edges.time() >= e.time() - _delta
+        vector<int>::const_iterator e_src_in_edges_left_it = lower_bound(
+            e_src_in_edges.begin(), e_src_in_edges.end(), e.time() - _delta,
+            [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+        );
+        int num_e_src_in_edges = distance(e_src_in_edges_left_it, e_src_in_edges_right_it);
+        int n_select_3 = num_e_src_in_edges * (num_e_src_in_edges - 1) * (num_e_src_in_edges - 2) / (3*2);
+
+        // e_dst_out_edges.index() > e.index()
+        vector<int>::const_iterator e_dst_out_edges_left_it = upper_bound(
+            e_dst_out_edges.begin(), e_dst_out_edges.end(), e.index()
+        );
+        // e_dst_out_edges.time() <= e.time() + _delta
+        vector<int>::const_iterator e_dst_out_edges_right_it = upper_bound(
+            e_dst_out_edges.begin(), e_dst_out_edges.end(), e.time() + _delta,
+            [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
+        );
+        int num_e_dst_out_edges = distance(e_dst_out_edges_left_it, e_dst_out_edges_right_it);
+        e3_sampling_weights[i] = (long long int) n_select_3 * num_e_dst_out_edges;
+        W += e3_sampling_weights[i];
+    }
+    return W;
+}
+
+long long int GraphSearch::sixNode109PreprocessSamplingWeights(
+    vector<long long int>& e1_sampling_weights,
+    vector<long long int>& e2_sampling_weights,
+    vector<long long int>& e3_sampling_weights
+    )
+{
+    /*
+    e2 - delta <= e0, e1 <= e2
+    e2 <= e3, e4 <= e2 + delta 
+    */
+    e2_sampling_weights.assign(_g->numEdges(), 0);
+    long long int W = 0;
+
+    #pragma omp parallel for reduction(+:W)
+    for(int i = 0; i < _g->numEdges(); i++)
+    {
+        Edge e = _g->edges()[i];
+        int e_src = e.source();
+        int e_dst = e.dest();
+        if(e_src == e_dst){
+            continue;
+        }
+        const vector<int>& e_src_in_edges = _g->nodes()[e_src].inEdges();
+        const vector<int>& e_dst_out_edges = _g->nodes()[e_dst].outEdges();
+        // e_src_in_edges.index() < e.index()
+        vector<int>::const_iterator e_src_in_edges_right_it = lower_bound(
+            e_src_in_edges.begin(), e_src_in_edges.end(), e.index()
+        );
+        // e_src_in_edges.time() >= e.time() - _delta
+        vector<int>::const_iterator e_src_in_edges_left_it = lower_bound(
+            e_src_in_edges.begin(), e_src_in_edges.end(), e.time() - _delta,
+            [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+        );
+        int num_e_src_in_edges = distance(e_src_in_edges_left_it, e_src_in_edges_right_it);
+        int n_select_2 = num_e_src_in_edges * (num_e_src_in_edges - 1) / 2;
+
+        // e_dst_out_edges.index() > e.index()
+        vector<int>::const_iterator e_dst_out_edges_left_it = upper_bound(
+            e_dst_out_edges.begin(), e_dst_out_edges.end(), e.index()
+        );
+        // e_dst_out_edges.time() <= e.time() + _delta
+        vector<int>::const_iterator e_dst_out_edges_right_it = upper_bound(
+            e_dst_out_edges.begin(), e_dst_out_edges.end(), e.time() + _delta,
+            [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
+        );
+        int num_e_dst_out_edges = distance(e_dst_out_edges_left_it, e_dst_out_edges_right_it);
+        e2_sampling_weights[i] = (long long int) n_select_2 * num_e_dst_out_edges;
+        W += e2_sampling_weights[i];
+    }
+    return W;
+}
+
+
+long long int GraphSearch::sixNode110PreprocessSamplingWeights(
+    vector<long long int>& e1_sampling_weights,
+    vector<long long int>& e2_sampling_weights,
+    vector<long long int>& e3_sampling_weights
+    )
+{
+    /*
+    e3_sampling_weights ensures
+    e3 - delta<= e2 <= e3
+    e1_sampling_weights ensures
+    e1 - delta <= e0 <= e1;
+    e1 <= e3, e4 <= e1 + delta
+    */
+    e3_sampling_weights.assign(_g->numEdges(), 0);
+    e1_sampling_weights.assign(_g->numEdges(), 0);
+    long long int W = 0;
+
+    #pragma omp parallel for reduction(+:W)
+    for(int i = 0; i < _g->numEdges(); i++)
+    {
+        Edge e = _g->edges()[i];
+        int e_src = e.source();
+        int e_dst = e.dest();
+        if(e_src == e_dst){
+            continue;
+        }
+        const vector<int>& e_src_in_edges = _g->nodes()[e_src].inEdges();
+        // e_src_in_edges.index() < e.index()
+        vector<int>::const_iterator e_src_in_edges_right_it = lower_bound(
+            e_src_in_edges.begin(), e_src_in_edges.end(), e.index()
+        );
+        // e_src_in_edges.time() >= e.time() - _delta
+        vector<int>::const_iterator e_src_in_edges_left_it = lower_bound(
+            e_src_in_edges.begin(), e_src_in_edges.end(), e.time() - _delta,
+            [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+        );
+        int num_e_src_in_edges = distance(e_src_in_edges_left_it, e_src_in_edges_right_it);
+        e3_sampling_weights[i] = (long long int) num_e_src_in_edges;
+    }
+
+    #pragma omp parallel for reduction(+:W)
+    for(int i = 0; i < _g->numEdges(); i++)
+    {
+        Edge e = _g->edges()[i];
+        int u = e.source();
+        int v = e.dest();
+        if (u == v)
+            e1_sampling_weights[i] = 0;
+        else
+        {
+            const vector<int>& e_src_in_edges = _g->nodes()[u].inEdges();
+            const vector<int>& e_dst_in_edges = _g->nodes()[v].inEdges();
+            const vector<int>& e_dst_out_edges = _g->nodes()[v].outEdges();
+            // e_src_in_edges.index() < e.index()
+            vector<int>::const_iterator e_src_in_edges_right_it = lower_bound(
+                e_src_in_edges.begin(), e_src_in_edges.end(), e.index()
+            );
+            // e_src_in_edges.time() >= e.time() - _delta
+            vector<int>::const_iterator e_src_in_edges_left_it = lower_bound(
+                e_src_in_edges.begin(), e_src_in_edges.end(), e.time() - _delta,
+                [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+            );
+            int num_e_src_in_edges = distance(e_src_in_edges_left_it, e_src_in_edges_right_it);
+
+            // e_dst_in_edges.index() > e.index()
+            vector<int>::const_iterator e_dst_in_edges_left_it = upper_bound(
+                e_dst_in_edges.begin(), e_dst_in_edges.end(), e.index()
+            );
+            // e_dst_in_edges.time() <= e.time() + _delta
+            vector<int>::const_iterator e_dst_in_edges_right_it = upper_bound(
+                e_dst_in_edges.begin(), e_dst_in_edges.end(), e.time() + _delta,
+                [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
+            );
+            long long int e3_v_weight = 0;
+            for(vector<int>::const_iterator it = e_dst_in_edges_left_it; it != e_dst_in_edges_right_it; it++)
+            {
+                e3_v_weight += e3_sampling_weights[*it];
+            }
+
+            // e_dst_out_edges.index() > e.index()
+            vector<int>::const_iterator e_dst_out_edges_left_it = upper_bound(
+                e_dst_out_edges.begin(), e_dst_out_edges.end(), e.index()
+            );
+            // e_dst_out_edges.time() <= e.time() + _delta
+            vector<int>::const_iterator e_dst_out_edges_right_it = upper_bound(
+                e_dst_out_edges.begin(), e_dst_out_edges.end(), e.time() + _delta,
+                [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
+            );
+            int num_e_dst_out_edges = distance(e_dst_out_edges_left_it, e_dst_out_edges_right_it);
+
+            e1_sampling_weights[i] = (long long int) num_e_src_in_edges * e3_v_weight * num_e_dst_out_edges;
+            W += e1_sampling_weights[i];
+        }
+    }
+    return W;
+}
+
+long long int GraphSearch::sixNode111PreprocessSamplingWeights(
+    vector<long long int>& e1_sampling_weights,
+    vector<long long int>& e2_sampling_weights,
+    vector<long long int>& e3_sampling_weights
+    )
+{
+    /*
+    e3_sampling_weights ensures
+    e3 <= e4 <= e3 + delta
+    e2_sampling_weights ensures
+    e2 - delta <= e0, e1 <= e2;
+    e2 <= e3 <= e2 + delta
+    */
+    e2_sampling_weights.assign(_g->numEdges(), 0);
+    e3_sampling_weights.assign(_g->numEdges(), 0);
+    long long int W = 0;
+
+    #pragma omp parallel for reduction(+:W)
+    for(int i = 0; i < _g->numEdges(); i++)
+    {
+        Edge e = _g->edges()[i];
+        int e_src = e.source();
+        int e_dst = e.dest();
+        if(e_src == e_dst){
+            continue;
+        }
+        const vector<int>& e_dst_out_edges = _g->nodes()[e_dst].outEdges();
+        // e_dst_out_edges.index() > e.index()
+        vector<int>::const_iterator e_dst_out_edges_left_it = upper_bound(
+            e_dst_out_edges.begin(), e_dst_out_edges.end(), e.index()
+        );
+        // e_dst_out_edges.time() <= e.time() + _delta
+        vector<int>::const_iterator e_dst_out_edges_right_it = upper_bound(
+            e_dst_out_edges.begin(), e_dst_out_edges.end(), e.time() + _delta,
+            [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
+        );
+        int num_e_dst_out_edges = distance(e_dst_out_edges_left_it, e_dst_out_edges_right_it);
+        e3_sampling_weights[i] = (long long int) num_e_dst_out_edges;
+    }
+
+    #pragma omp parallel for reduction(+:W)
+    for(int i = 0; i < _g->numEdges(); i++)
+    {
+        Edge e = _g->edges()[i];
+        int u = e.source();
+        int v = e.dest();
+        if (u == v)
+            e2_sampling_weights[i] = 0;
+        else
+        {
+            const vector<int>& e_src_in_edges = _g->nodes()[u].inEdges();
+            const vector<int>& e_dst_out_edges = _g->nodes()[v].outEdges();
+            // e_src_in_edges.index() < e.index()
+            vector<int>::const_iterator e_src_in_edges_right_it = lower_bound(
+                e_src_in_edges.begin(), e_src_in_edges.end(), e.index()
+            );
+            // e_src_in_edges.time() >= e.time() - _delta
+            vector<int>::const_iterator e_src_in_edges_left_it = lower_bound(
+                e_src_in_edges.begin(), e_src_in_edges.end(), e.time() - _delta,
+                [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+            );
+            int num_e_src_in_edges = distance(e_src_in_edges_left_it, e_src_in_edges_right_it);
+            int n_select_2 = (num_e_src_in_edges * num_e_src_in_edges-1) / 2;
+
+            // e_dst_out_edges.index() > e.index()
+            vector<int>::const_iterator e_dst_out_edges_left_it = upper_bound(
+                e_dst_out_edges.begin(), e_dst_out_edges.end(), e.index()
+            );
+            // e_dst_out_edges.time() <= e.time() + _delta
+            vector<int>::const_iterator e_dst_out_edges_right_it = upper_bound(
+                e_dst_out_edges.begin(), e_dst_out_edges.end(), e.time() + _delta,
+                [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
+            );
+            long long int e2_v_weight = 0;
+            for(vector<int>::const_iterator it = e_dst_out_edges_left_it; it != e_dst_out_edges_right_it; it++)
+            {
+                e2_v_weight += e3_sampling_weights[*it];
+            }
+            e2_sampling_weights[i] = (long long int) n_select_2 * e2_v_weight;
+            W += e2_sampling_weights[i];
+        }
+    }
+    return W;
+}
+
 long long int GraphSearch::sixNode112PreprocessSamplingWeights(
     vector<long long int>& e1_sampling_weights,
-    vector<long long int>& e3_sampling_weights,
-    vector<long long int>& e2_sampling_weights
+    vector<long long int>& e2_sampling_weights,
+    vector<long long int>& e3_sampling_weights
     )
 {
     /*
@@ -1615,6 +1902,10 @@ long long int GraphSearch::sixNode112PreprocessSamplingWeights(
     e2_sampling_weights ensure that the timesamp
     e1 <= e2 <= e1+delta; e2 <= e3 <= e2+delta
     */
+
+    e1_sampling_weights.assign(_g->numEdges(), 0);
+    e3_sampling_weights.assign(_g->numEdges(), 0);
+    e2_sampling_weights.assign(_g->numEdges(), 0);
     long long int W = 0;
 
     #pragma omp parallel for reduction(+:W)
@@ -1713,7 +2004,7 @@ vector<float> GraphSearch::estimate_motif_general(const vector<long long int> &m
     return estimated_cnts;
 }
 
-vector<float> GraphSearch::sixNode112PathSample(const Graph &g,
+vector<float> GraphSearch::sixNodePathSample(const Graph &g, int spanning_tree_no,
                                                 int num_of_threads, int partition_per_thread,
                                                 int delta, long long int max_trial)
 {
@@ -1737,20 +2028,15 @@ vector<float> GraphSearch::sixNode112PathSample(const Graph &g,
     // motifs counts
     vector<long long int> motifs_cnts(3, 0);
 
-    vector<long long int> e1_sampling_weights(_g->numEdges(), 0);
-    vector<long long int> e2_sampling_weights(_g->numEdges(), 0);
-    vector<long long int> e3_sampling_weights(_g->numEdges(), 0);
+    vector<long long int> e1_sampling_weights;
+    vector<long long int> e2_sampling_weights;
+    vector<long long int> e3_sampling_weights;
 
-    W = sixNode112PreprocessSamplingWeights(
-        e1_sampling_weights, e3_sampling_weights, e2_sampling_weights);
+    W = preprocess_funcs[spanning_tree_no](
+        e1_sampling_weights, e2_sampling_weights, e3_sampling_weights);
 
     cout << "W: " << W << endl;
-    // cout << "e2_sampling_weights: ";
-    // for(int i = 0; i < e2_sampling_weights.size(); i++)
-    // {
-    //     cout << e2_sampling_weights[i] << ", ";
-    // }
-    // cout << endl;
+
     discrete_distribution<> e2_weights_distr(e2_sampling_weights.begin(), e2_sampling_weights.end());
 
     if (num_of_threads > 1)

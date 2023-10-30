@@ -42,6 +42,7 @@ int main(int argc, char **argv)
         vector<vector<int>> queryDeltaCounts;
 
         int algo = args.algorithm();
+        int spanning_tree_no = args.spanning_tree_no();
         time_t delta = args.delta();
         if (args.verbose())
         {
@@ -125,7 +126,7 @@ int main(int argc, char **argv)
             Timer t;
             double avg_time = 0;
             t.Start();
-            results = search.sixNode112PathSample(g, num_of_threads, PARTITION_PER_THREAD, delta, max_trial);
+            results = search.sixNodePathSample(g, spanning_tree_no, num_of_threads, PARTITION_PER_THREAD, delta, max_trial);
             t.Stop();
             avg_time += t.Seconds();
             for (int i = 0; i < results.size(); i++)

@@ -14,6 +14,7 @@ CmdArgs::CmdArgs(int argc, char **argv)
     _max_trial = 1e3; // the number of samples to take in TEACUPS 3 path sampling
     _need_h = false; // need query file or not
     _delta = 60*60*24; //1D
+    _spanning_tree_no = 112; // spanning_tree no, from 108 to 112
 
     if(argc <= 1)
     {
@@ -122,6 +123,22 @@ CmdArgs::CmdArgs(int argc, char **argv)
 		_success = false;
 	    }
 	}
+    else if(arg == "-spanning_tree") // spanning tree number: 108 - 112
+    {
+        i++;
+	    if(i == argc)
+	    {
+		cout << "Missing delta value after -spanning_tree argument." << endl;
+		_success = false;
+		continue;
+	    }
+	    _spanning_tree_no = atoi(argv[i]);
+        if( _spanning_tree_no > 112 || _spanning_tree_no < 108)
+        {
+            cout << "spanning_tree must be integer in [108, 112]" << endl;
+            _success = false;
+        }
+    }
     else if(arg == "-thread")
 	{
 	    i++;

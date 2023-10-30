@@ -16,6 +16,7 @@
 #include <unordered_set>
 #include <tuple>
 #include <random>
+#include <functional>
 #include "GraphMatch.h"
 
 /**
@@ -107,14 +108,34 @@ public:
     long long int preprocess_sampling_weights(
         std::vector<int>& sampling_weights, std::vector<std::vector<std::vector<int>::const_iterator>>& sampling_neigh_edges_it);
 
-    std::vector<float> sixNode112PathSample(
-        const Graph &g, int num_of_threads=1, int partition_per_thread=1,
+    std::vector<float> sixNodePathSample(
+        const Graph &g, int spanning_tree_no=112, int num_of_threads=1, int partition_per_thread=1,
         int delta = INT_MAX, long long int max_trial = 2e5);
+
+    long long int sixNode108PreprocessSamplingWeights(
+        std::vector<long long int>& e1_sampling_weights,
+        std::vector<long long int>& e2_sampling_weights,
+        std::vector<long long int>& e3_sampling_weights);
+
+    long long int sixNode109PreprocessSamplingWeights(
+        std::vector<long long int>& e1_sampling_weights,
+        std::vector<long long int>& e2_sampling_weights,
+        std::vector<long long int>& e3_sampling_weights);
+
+    long long int sixNode110PreprocessSamplingWeights(
+        std::vector<long long int>& e1_sampling_weights,
+        std::vector<long long int>& e2_sampling_weights,
+        std::vector<long long int>& e3_sampling_weights);
+
+    long long int sixNode111PreprocessSamplingWeights(
+        std::vector<long long int>& e1_sampling_weights,
+        std::vector<long long int>& e2_sampling_weights,
+        std::vector<long long int>& e3_sampling_weights);
 
     long long int sixNode112PreprocessSamplingWeights(
         std::vector<long long int>& e1_sampling_weights,
-        std::vector<long long int>& e3_sampling_weights,
-        std::vector<long long int>& e2_sampling_weights);
+        std::vector<long long int>& e2_sampling_weights,
+        std::vector<long long int>& e3_sampling_weights);
     
     std::vector<long long int> sixNode112SampleAndCheckMotif(
         long long int max_trial,
@@ -135,6 +156,14 @@ public:
     std::vector<long long int> check_motif112(std::vector<Edge> &sampled_edges);
     std::vector<float> estimate_motif_general(
         const std::vector<long long int> &motifs_cnts, long long int num_sample, long long int W);
+
+    std::map<int,std::function<long long int(std::vector<long long int>&, std::vector<long long int>&, std::vector<long long int>&)>> preprocess_funcs {
+            { 108, std::bind(&GraphSearch::sixNode108PreprocessSamplingWeights, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+            { 109, std::bind(&GraphSearch::sixNode109PreprocessSamplingWeights, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+            { 110, std::bind(&GraphSearch::sixNode110PreprocessSamplingWeights, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+            { 111, std::bind(&GraphSearch::sixNode111PreprocessSamplingWeights, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+            { 112, std::bind(&GraphSearch::sixNode112PreprocessSamplingWeights, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+        };
 
 private:
     /** Creates map of which nodes in G can map to the nodes we are searching for from H */
