@@ -30,6 +30,32 @@ bool GraphSearch::containDuplicates(vector<int> list)
     return it != list.end();
 }
 
+// https://stackoverflow.com/questions/9345087/choose-m-elements-randomly-from-a-vector-containing-n-elements
+template<class BidiIter >
+BidiIter GraphSearch::random_unique(BidiIter begin, BidiIter end, size_t num_random, unsigned int seed) {
+    size_t left = std::distance(begin, end);
+    while (num_random--) {
+        BidiIter r = begin;
+        std::advance(r, rand_r(&seed)%left);
+        std::swap(*begin, *r);
+        ++begin;
+        --left;
+    }
+    return begin;
+}
+
+vector<int> GraphSearch::random_select_n(vector<int>& list, size_t num_random, unsigned int seed) {
+    vector<int> result;
+
+    while(num_random--) {
+        int r = rand_r(&seed) % list.size();
+        result.push_back(list[r]);
+        list.erase(list.begin() + r);
+    }
+
+    return result;
+}
+
 vector<GraphMatch> GraphSearch::findAllSubgraphs(const Graph &g, const Graph &h, long long int limit)
 {
     // If no criteria specified, just use the "dummy" criteria, that accepts everything.
@@ -1364,8 +1390,8 @@ bool GraphSearch::sample108(
     int iter,
     mt19937& eng,
     unique_ptr<discrete_distribution<>>& e3_weights_distr,
-    vector<long long int>& ei_sampling_weights, // pseudo input arg
-    vector<long long int>& ej_sampling_weights, // pseudo input arg
+    vector<long long int>* ei_sampling_weights, // pseudo input arg
+    vector<long long int>* ej_sampling_weights, // pseudo input arg
     vector<Edge>& sampled_edges)
 {
     unsigned int seed = time(NULL) ^ omp_get_thread_num() ^ static_cast<unsigned int>(iter);
@@ -1373,7 +1399,6 @@ bool GraphSearch::sample108(
 
     /* Sample e3 using e3_weights_distr */
     int e3_id = (*e3_weights_distr)(eng);
-    // cout << "e3_id: " << e3_id << endl;
     Edge e3 = _g->edges()[e3_id];
     int u = e3.source();
     int v = e3.dest();
@@ -1395,21 +1420,15 @@ bool GraphSearch::sample108(
     int num_u_in_edges = distance(u_in_edges_left_it, u_in_edges_right_it);
     if (num_u_in_edges == 0)
         return false;
-    int u_in_edges_randidx = rand_r(&seed) % num_u_in_edges;
-    int e0_id = *(u_in_edges_left_it + u_in_edges_randidx);
-    u_in_edges_randidx = rand_r(&seed) % num_u_in_edges;
-    int e1_id = *(u_in_edges_left_it + u_in_edges_randidx);
-    u_in_edges_randidx = rand_r(&seed) % num_u_in_edges;
-    int e2_id = *(u_in_edges_left_it + u_in_edges_randidx);
+    vector<int> u_in_edges_in_range(u_in_edges_left_it, u_in_edges_right_it);
+    random_unique(u_in_edges_in_range.begin(), u_in_edges_in_range.end(), 3, seed);
+    // vector<int> select_3_vec = random_select_n(u_in_edges_in_range, 3, seed);
 
-    vector<int> e0_e1_e2_ids {e0_id, e1_id, e2_id};
     // sort e0 - e2 ids and reassign,
-    sort(e0_e1_e2_ids.begin(), e0_e1_e2_ids.end());
-    e0_id = e0_e1_e2_ids[0];
-    e1_id = e0_e1_e2_ids[1];
-    e2_id = e0_e1_e2_ids[2];
-    if(containDuplicates({e0_id, e1_id, e2_id})) // e0, e1, e2 must have unique ids
-        return false;
+    sort(u_in_edges_in_range.begin(), u_in_edges_in_range.begin() + 3);
+    int e0_id = u_in_edges_in_range[0];
+    int e1_id = u_in_edges_in_range[1];
+    int e2_id = u_in_edges_in_range[2];
     Edge e0 = _g->edges()[e0_id];
     Edge e1 = _g->edges()[e1_id];
     Edge e2 = _g->edges()[e2_id];
@@ -1418,8 +1437,8 @@ bool GraphSearch::sample108(
     int c = e2.source();
     if( containDuplicates({u, v, a, b, c}))
         return false;
-    if (e0.time() < e3.time() - _delta)
-        return false;
+    // if (e0.time() < e3.time() - _delta)
+    //     return false;
     sampled_edges[0] = e0;
     sampled_edges[1] = e1;
     sampled_edges[2] = e2;
@@ -1442,14 +1461,13 @@ bool GraphSearch::sample108(
     int v_out_edges_randidx = rand_r(&seed) % num_v_out_edges;
     int e4_id = *(v_out_edges_left_it + v_out_edges_randidx);
     Edge e4 = _g->edges()[e4_id];
-    int s = e4.dest();
+    int d = e4.dest();
 
-    if( containDuplicates({u, v, a, b, c, s}))
+    if( containDuplicates({u, v, a, b, c, d}))
         return false;
     if (e4.time() > e0.time() + _delta)
         return false;
     sampled_edges[4] = e4;
-
     return true;
 }
 
@@ -1458,8 +1476,8 @@ bool GraphSearch::sample109(
     int iter,
     mt19937& eng,
     unique_ptr<discrete_distribution<>>& e2_weights_distr,
-    vector<long long int>& ei_sampling_weights, // pseudo input arg
-    vector<long long int>& ej_sampling_weights, // pseudo input arg
+    vector<long long int>* ei_sampling_weights, // pseudo input arg
+    vector<long long int>* ej_sampling_weights, // pseudo input arg
     vector<Edge>& sampled_edges)
 {
     unsigned int seed = time(NULL) ^ omp_get_thread_num() ^ static_cast<unsigned int>(iter);
@@ -1560,8 +1578,8 @@ bool GraphSearch::sample110(
     int iter,
     mt19937& eng,
     unique_ptr<discrete_distribution<>>& e1_weights_distr,
-    vector<long long int>& ei_sampling_weights, // pseudo input arg
-    vector<long long int>& e3_sampling_weights,
+    vector<long long int>* ei_sampling_weights, // pseudo input arg
+    vector<long long int>* e3_sampling_weights,
     vector<Edge>& sampled_edges)
 {
     unsigned int seed = time(NULL) ^ omp_get_thread_num() ^ static_cast<unsigned int>(iter);
@@ -1643,7 +1661,7 @@ bool GraphSearch::sample110(
     vector<int> cur_e3_weights(num_u_in_edges, 0);
     for(int i = 0; i < cur_e3_weights.size(); i++)
     {
-        cur_e3_weights[i] = e3_sampling_weights[*(v_in_edges_left_it+i)];
+        cur_e3_weights[i] = (*e3_sampling_weights)[*(v_in_edges_left_it+i)];
     }
     discrete_distribution<> e3_weights_distr(cur_e3_weights.begin(), cur_e3_weights.end());
     int e3_id = *(v_in_edges_left_it + e3_weights_distr(eng));
@@ -1689,8 +1707,8 @@ bool GraphSearch::sample111(
     int iter,
     mt19937& eng,
     unique_ptr<discrete_distribution<>>& e2_weights_distr,
-    vector<long long int>& ei_sampling_weights, // pseudo input arg
-    vector<long long int>& e3_sampling_weights,
+    vector<long long int>* ei_sampling_weights, // pseudo input arg
+    vector<long long int>* e3_sampling_weights,
     vector<Edge>& sampled_edges)
 {
     unsigned int seed = time(NULL) ^ omp_get_thread_num() ^ static_cast<unsigned int>(iter);
@@ -1762,7 +1780,7 @@ bool GraphSearch::sample111(
     vector<int> cur_e3_weights(num_v_out_edges, 0);
     for(int i = 0; i < cur_e3_weights.size(); i++)
     {
-        cur_e3_weights[i] = e3_sampling_weights[*(v_out_edges_left_it + i)];
+        cur_e3_weights[i] = (*e3_sampling_weights)[*(v_out_edges_left_it + i)];
     }
     discrete_distribution<> e3_weights_distr(cur_e3_weights.begin(), cur_e3_weights.end());
     int e3_id = *(v_out_edges_left_it + e3_weights_distr(eng));
@@ -1810,12 +1828,15 @@ bool GraphSearch::sample112(
     int iter,
     mt19937& eng,
     unique_ptr<discrete_distribution<>>& e2_weights_distr,
-    vector<long long int>& e1_sampling_weights,
-    vector<long long int>& e3_sampling_weights,
+    vector<long long int>* e1_sampling_weights_ptr,
+    vector<long long int>* e3_sampling_weights_ptr,
     vector<Edge>& sampled_edges)
 {
     unsigned int seed = time(NULL) ^ omp_get_thread_num() ^ static_cast<unsigned int>(iter);
     sampled_edges.clear();
+
+    vector<long long int>& e1_sampling_weights = *e1_sampling_weights_ptr;
+    vector<long long int>& e3_sampling_weights = *e3_sampling_weights_ptr;
 
     /* Sample e2  using e2_weights_distr */
     int e2_id = (*e2_weights_distr)(eng);
@@ -1841,7 +1862,7 @@ bool GraphSearch::sample112(
     int num_u_in_edges = distance(u_in_edges_left_it, u_in_edges_right_it);
     if (num_u_in_edges == 0)
         return false;
-    vector<int> cur_e1_weights(num_u_in_edges, 0);
+    vector<long long int> cur_e1_weights(num_u_in_edges, 0);
     for(int i = 0; i < cur_e1_weights.size(); i++)
     {
         cur_e1_weights[i] = e1_sampling_weights[*(u_in_edges_left_it+i)];
@@ -1948,6 +1969,62 @@ bool GraphSearch::sample112(
     return true;
 }
 
+vector<long long int> GraphSearch::check_motif108(vector<Edge> &sampled_edges)
+{
+    vector<long long int> motifs_cnts(3, 0);
+    Edge e0 = sampled_edges[0];
+    Edge e1 = sampled_edges[1];
+    Edge e2 = sampled_edges[2];
+    Edge e3 = sampled_edges[3];
+    Edge e4 = sampled_edges[4];
+
+    motifs_cnts[0] = 1;
+
+    return motifs_cnts;
+}
+
+vector<long long int> GraphSearch::check_motif109(vector<Edge> &sampled_edges)
+{
+    vector<long long int> motifs_cnts(3, 0);
+    Edge e0 = sampled_edges[0];
+    Edge e1 = sampled_edges[1];
+    Edge e2 = sampled_edges[2];
+    Edge e3 = sampled_edges[3];
+    Edge e4 = sampled_edges[4];
+
+    motifs_cnts[0] = 1;
+
+    return motifs_cnts;
+}
+
+vector<long long int> GraphSearch::check_motif110(vector<Edge> &sampled_edges)
+{
+    vector<long long int> motifs_cnts(3, 0);
+    Edge e0 = sampled_edges[0];
+    Edge e1 = sampled_edges[1];
+    Edge e2 = sampled_edges[2];
+    Edge e3 = sampled_edges[3];
+    Edge e4 = sampled_edges[4];
+
+    motifs_cnts[0] = 1;
+
+    return motifs_cnts;
+}
+
+vector<long long int> GraphSearch::check_motif111(vector<Edge> &sampled_edges)
+{
+    vector<long long int> motifs_cnts(3, 0);
+    Edge e0 = sampled_edges[0];
+    Edge e1 = sampled_edges[1];
+    Edge e2 = sampled_edges[2];
+    Edge e3 = sampled_edges[3];
+    Edge e4 = sampled_edges[4];
+
+    motifs_cnts[0] = 1;
+
+    return motifs_cnts;
+}
+
 vector<long long int> GraphSearch::check_motif112(vector<Edge> &sampled_edges)
 {
     vector<long long int> motifs_cnts(3, 0);
@@ -2024,11 +2101,12 @@ vector<long long int> GraphSearch::check_motif112(vector<Edge> &sampled_edges)
     return motifs_cnts;
 }
 
-vector<long long int> GraphSearch::sixNode112SampleAndCheckMotif(
+vector<long long int> GraphSearch::sixNodeSampleAndCheckMotif(
     long long int max_trial,
+    int spanning_tree_no,
     unique_ptr<discrete_distribution<>>& e_center_weight_distr,
-    vector<long long int>& e1_sampling_weights,
-    vector<long long int>& e3_sampling_weights
+    vector<long long int>* e_left_sampling_weights,
+    vector<long long int>* e_right_sampling_weights
     )
 {
     random_device rd;
@@ -2040,13 +2118,13 @@ vector<long long int> GraphSearch::sixNode112SampleAndCheckMotif(
     {
         vector<Edge> sampled_edges(5, Edge(-1,-1,-1,-1));
         // int edge_id = e2_weight_distr(eng);
-        bool found = sample112(
-            trial, eng, e_center_weight_distr, e1_sampling_weights, e3_sampling_weights, sampled_edges);
+        bool found = sample_funcs[spanning_tree_no](
+            trial, eng, e_center_weight_distr, e_left_sampling_weights, e_right_sampling_weights, sampled_edges);
         if(!found)
         {
             continue;
         }
-        vector<long long int> this_motifs_cnts = check_motif112(sampled_edges);
+        vector<long long int> this_motifs_cnts = check_motif_funcs[spanning_tree_no](sampled_edges);
         for(int i = 0; i < motifs_cnts.size(); i++)
         {
             motifs_cnts[i] += this_motifs_cnts[i];
@@ -2091,7 +2169,9 @@ long long int GraphSearch::sixNode108PreprocessSamplingWeights(
             [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
         );
         int num_e_src_in_edges = distance(e_src_in_edges_left_it, e_src_in_edges_right_it);
-        int n_select_3 = num_e_src_in_edges * (num_e_src_in_edges - 1) * (num_e_src_in_edges - 2) / (3*2);
+        long long int n_select_3 = 0;
+        if (num_e_src_in_edges >= 3)
+            n_select_3 = (long long int) num_e_src_in_edges * (num_e_src_in_edges - 1) * (num_e_src_in_edges - 2) / (3*2);
 
         // e_dst_out_edges.index() > e.index()
         vector<int>::const_iterator e_dst_out_edges_left_it = upper_bound(
@@ -2143,7 +2223,9 @@ long long int GraphSearch::sixNode109PreprocessSamplingWeights(
             [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
         );
         int num_e_src_in_edges = distance(e_src_in_edges_left_it, e_src_in_edges_right_it);
-        int n_select_2 = num_e_src_in_edges * (num_e_src_in_edges - 1) / 2;
+        long long int n_in_select_2 = 0;
+        if (num_e_src_in_edges >= 2) 
+            n_in_select_2 = (long long int)num_e_src_in_edges * (num_e_src_in_edges - 1) / 2;
 
         // e_dst_out_edges.index() > e.index()
         vector<int>::const_iterator e_dst_out_edges_left_it = upper_bound(
@@ -2155,7 +2237,11 @@ long long int GraphSearch::sixNode109PreprocessSamplingWeights(
             [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
         );
         int num_e_dst_out_edges = distance(e_dst_out_edges_left_it, e_dst_out_edges_right_it);
-        e2_sampling_weights[i] = (long long int) n_select_2 * num_e_dst_out_edges;
+        long long int n_out_select_2 = 0;
+        if (num_e_src_in_edges >= 2) 
+            n_out_select_2 = (long long int) num_e_src_in_edges * (num_e_src_in_edges - 1) / 2;
+
+        e2_sampling_weights[i] = (long long int) n_in_select_2 * n_out_select_2;
         W += e2_sampling_weights[i];
     }
     return W;
@@ -2321,7 +2407,9 @@ long long int GraphSearch::sixNode111PreprocessSamplingWeights(
                 [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
             );
             int num_e_src_in_edges = distance(e_src_in_edges_left_it, e_src_in_edges_right_it);
-            int n_select_2 = (num_e_src_in_edges * num_e_src_in_edges-1) / 2;
+            long long int n_select_2 = 0;
+            if (num_e_src_in_edges >= 2)
+                n_select_2 = (long long int)(num_e_src_in_edges * num_e_src_in_edges-1) / 2;    
 
             // e_dst_out_edges.index() > e.index()
             vector<int>::const_iterator e_dst_out_edges_left_it = upper_bound(
@@ -2490,6 +2578,12 @@ vector<float> GraphSearch::sixNodePathSample(const Graph &g, int spanning_tree_n
         e1_sampling_weights, e2_sampling_weights, e3_sampling_weights);
 
     cout << "W: " << W << endl;
+    // cout << "e3_sampling_weights: ";
+    // for(int i = 0 ; i < e3_sampling_weights.size(); i++)
+    // {
+    //     cout << e3_sampling_weights[i] << ", ";
+    // }
+    // cout << endl;
 
     // polymorphism 
     // https://stackoverflow.com/questions/54404448/is-there-a-way-to-declare-objects-within-a-conditional-statement
@@ -2508,6 +2602,19 @@ vector<float> GraphSearch::sixNodePathSample(const Graph &g, int spanning_tree_n
     {
         e_center_weight_distr = make_unique<discrete_distribution<>>(e1_sampling_weights.begin(), e1_sampling_weights.end());
     }
+
+    vector<long long int>* e_left_sampling_weights;
+    vector<long long int>* e_right_sampling_weights;
+    if (spanning_tree_no >= 110)
+    {
+        e_right_sampling_weights = &e3_sampling_weights;
+    }
+    if (spanning_tree_no == 112)
+    {
+        e_left_sampling_weights = &e1_sampling_weights;
+    }
+    
+
     if (num_of_threads > 1)
     {
         // prepare omp
@@ -2524,7 +2631,7 @@ vector<float> GraphSearch::sixNodePathSample(const Graph &g, int spanning_tree_n
             int trial_num = single_trial_num;
             if (i == num_of_threads * partition_per_thread - 1)
                 trial_num = last_trial_num;
-            trial_motifs_cnts[i] = (sixNode112SampleAndCheckMotif(trial_num, e_center_weight_distr, e1_sampling_weights, e3_sampling_weights));
+            trial_motifs_cnts[i] = (sixNodeSampleAndCheckMotif(trial_num, spanning_tree_no, e_center_weight_distr, e_left_sampling_weights, e_right_sampling_weights));
         }
 
         for(int i = 0; i < motifs_cnts.size(); i++)
@@ -2537,8 +2644,8 @@ vector<float> GraphSearch::sixNodePathSample(const Graph &g, int spanning_tree_n
     }
 
     else{
-        motifs_cnts = sixNode112SampleAndCheckMotif(
-            max_trial, e_center_weight_distr, e1_sampling_weights, e3_sampling_weights);
+        motifs_cnts = sixNodeSampleAndCheckMotif(
+            max_trial, spanning_tree_no, e_center_weight_distr, e_left_sampling_weights, e_right_sampling_weights);
     }
 
     cout << "motifs_cnts: " << motifs_cnts[0] << endl;

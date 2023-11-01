@@ -138,19 +138,20 @@ public:
         std::vector<long long int>& e2_sampling_weights,
         std::vector<long long int>& e3_sampling_weights);
     
-    std::vector<long long int> sixNode112SampleAndCheckMotif(
+    std::vector<long long int> sixNodeSampleAndCheckMotif(
         long long int max_trial,
-        std::unique_ptr<std::discrete_distribution<>>& e2_weights_distr,
-        std::vector<long long int>& e1_sampling_weights,
-        std::vector<long long int>& e3_sampling_weights
+        int spanning_tree_no,
+        std::unique_ptr<std::discrete_distribution<>>& e_center_weight_distr,
+        std::vector<long long int>* e_left_sampling_weights,
+        std::vector<long long int>* e_right_sampling_weights
         );
 
     bool sample108(
         int iter,
         std::mt19937& eng,
         std::unique_ptr<std::discrete_distribution<>>& e3_weights_distr,
-        std::vector<long long int>& ei_sampling_weights,
-        std::vector<long long int>& ej_sampling_weights,
+        std::vector<long long int>* ei_sampling_weights,
+        std::vector<long long int>* ej_sampling_weights,
         std::vector<Edge>& sampled_edges
         );
 
@@ -158,8 +159,8 @@ public:
         int iter,
         std::mt19937& eng,
         std::unique_ptr<std::discrete_distribution<>>& e3_weights_distr,
-        std::vector<long long int>& ei_sampling_weights,
-        std::vector<long long int>& ej_sampling_weights,
+        std::vector<long long int>* ei_sampling_weights,
+        std::vector<long long int>* ej_sampling_weights,
         std::vector<Edge>& sampled_edges
         );
 
@@ -167,8 +168,8 @@ public:
         int iter,
         std::mt19937& eng,
         std::unique_ptr<std::discrete_distribution<>>& e1_weights_distr,
-        std::vector<long long int>& ei_sampling_weights,
-        std::vector<long long int>& e3_sampling_weights,
+        std::vector<long long int>* ei_sampling_weights,
+        std::vector<long long int>* e3_sampling_weights,
         std::vector<Edge>& sampled_edges
         );
 
@@ -176,8 +177,8 @@ public:
         int iter,
         std::mt19937& eng,
         std::unique_ptr<std::discrete_distribution<>>& e2_weights_distr,
-        std::vector<long long int>& ei_sampling_weights,
-        std::vector<long long int>& e3_sampling_weights,
+        std::vector<long long int>* ei_sampling_weights,
+        std::vector<long long int>* e3_sampling_weights,
         std::vector<Edge>& sampled_edges
         );
 
@@ -185,12 +186,17 @@ public:
         int iter,
         std::mt19937& eng,
         std::unique_ptr<std::discrete_distribution<>>& e2_weights_distr,
-        std::vector<long long int>& e1_sampling_weights,
-        std::vector<long long int>& e3_sampling_weights,
+        std::vector<long long int>* e1_sampling_weights,
+        std::vector<long long int>* e3_sampling_weights,
         std::vector<Edge>& sampled_edges
         );
 
+    std::vector<long long int> check_motif108(std::vector<Edge> &sampled_edges);
+    std::vector<long long int> check_motif109(std::vector<Edge> &sampled_edges);
+    std::vector<long long int> check_motif110(std::vector<Edge> &sampled_edges);
+    std::vector<long long int> check_motif111(std::vector<Edge> &sampled_edges);
     std::vector<long long int> check_motif112(std::vector<Edge> &sampled_edges);
+
     std::vector<float> estimate_motif_general(
         const std::vector<long long int> &motifs_cnts, long long int num_sample, long long int W);
 
@@ -204,12 +210,20 @@ public:
 
     std::map<int,std::function<bool(
         int, std::mt19937&, std::unique_ptr<std::discrete_distribution<>>&,
-        std::vector<long long int>&, std::vector<long long int>&, std::vector<Edge>&)>> sample_funcs {
+        std::vector<long long int>*, std::vector<long long int>*, std::vector<Edge>&)>> sample_funcs {
             { 108, std::bind(&GraphSearch::sample108, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
             { 109, std::bind(&GraphSearch::sample109, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
             { 110, std::bind(&GraphSearch::sample110, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
             { 111, std::bind(&GraphSearch::sample111, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
             { 112, std::bind(&GraphSearch::sample112, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
+        };
+
+    std::map<int,std::function<std::vector<long long int>(std::vector<Edge> &)>> check_motif_funcs {
+            { 108, std::bind(&GraphSearch::check_motif108, this, std::placeholders::_1)},
+            { 109, std::bind(&GraphSearch::check_motif109, this, std::placeholders::_1)},
+            { 110, std::bind(&GraphSearch::check_motif110, this, std::placeholders::_1)},
+            { 111, std::bind(&GraphSearch::check_motif111, this, std::placeholders::_1)},
+            { 112, std::bind(&GraphSearch::check_motif112, this, std::placeholders::_1)},
         };
     
 
@@ -257,6 +271,11 @@ private:
 
     // helper function of find duplicates
     bool containDuplicates(std::vector<int> list);
+
+    // choose num_random of the list between begin and end
+    template<class BidiIter > BidiIter random_unique(BidiIter begin, BidiIter end, size_t num_random, unsigned int seed);
+
+    std::vector<int> random_select_n(std::vector<int>& list, size_t num_random, unsigned int seed);
 
     // Private data members
     const Graph *_g, *_h;
