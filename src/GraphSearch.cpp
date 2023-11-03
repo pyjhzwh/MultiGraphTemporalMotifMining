@@ -1507,18 +1507,13 @@ bool GraphSearch::sample109(
     int num_u_in_edges = distance(u_in_edges_left_it, u_in_edges_right_it);
     if (num_u_in_edges == 0)
         return false;
-    int u_in_edges_randidx = rand_r(&seed) % num_u_in_edges;
-    int e0_id = *(u_in_edges_left_it + u_in_edges_randidx);
-    u_in_edges_randidx = rand_r(&seed) % num_u_in_edges;
-    int e1_id = *(u_in_edges_left_it + u_in_edges_randidx);
-
-    vector<int> e0_e1_ids {e0_id, e1_id};
+    vector<int> u_in_edges_in_range(u_in_edges_left_it, u_in_edges_right_it);
+    random_unique(u_in_edges_in_range.begin(), u_in_edges_in_range.end(), 2, seed);
     // sort e0 - e2 ids and reassign,
-    sort(e0_e1_ids.begin(), e0_e1_ids.end());
-    e0_id = e0_e1_ids[0];
-    e1_id = e0_e1_ids[1];
-    if(containDuplicates({e0_id, e1_id, e2_id})) // e0, e1, e2 must have unique ids
-        return false;
+    sort(u_in_edges_in_range.begin(), u_in_edges_in_range.begin() + 2);
+    int e0_id = u_in_edges_in_range[0];
+    int e1_id = u_in_edges_in_range[1];
+    // cout << "e0_id: " << e0_id << ", e1_id: " << e1_id << endl;
     Edge e0 = _g->edges()[e0_id];
     Edge e1 = _g->edges()[e1_id];
     int a = e0.source();
@@ -1545,28 +1540,22 @@ bool GraphSearch::sample109(
     int num_v_out_edges = distance(v_out_edges_left_it, v_out_edges_right_it);
     if (num_v_out_edges == 0)
         return false;
+    vector<int> v_out_edges_in_range(v_out_edges_left_it, v_out_edges_right_it);
+    random_unique(v_out_edges_in_range.begin(), v_out_edges_in_range.end(), 2, seed);
 
-    int v_out_edges_randidx = rand_r(&seed) % num_v_out_edges;
-    int e3_id = *(v_out_edges_left_it + v_out_edges_randidx);
-    v_out_edges_randidx = rand_r(&seed) % num_v_out_edges;
-    int e4_id = *(v_out_edges_left_it + v_out_edges_randidx);
-    v_out_edges_randidx = rand_r(&seed) % num_v_out_edges;
-
-    vector<int> e3_e4_ids {e3_id, e4_id};
     // sort e3 - e4 ids and reassign,
-    sort(e3_e4_ids.begin(), e3_e4_ids.end());
-    e3_id = e3_e4_ids[0];
-    e4_id = e3_e4_ids[1];
-    if(containDuplicates({e2_id, e3_id, e4_id})) // e3, e1, e2 must have unique ids
-        return false;
+    sort(v_out_edges_in_range.begin(), v_out_edges_in_range.begin() + 2);
+    int e3_id = v_out_edges_in_range[0];
+    int e4_id = v_out_edges_in_range[1];
+    // cout << "e3_id: " << e3_id << ", e4_id: " << e4_id << endl;
     Edge e3 = _g->edges()[e3_id];
     Edge e4 = _g->edges()[e4_id];
 
-    int c = e0.dest();
-    int d = e1.dest();
+    int c = e3.dest();
+    int d = e4.dest();
     if( containDuplicates({u, v, a, b, c, d}))
         return false;
-    if (e4.time() < e0.time() + _delta)
+    if (e4.time() > e0.time() + _delta)
         return false;
     sampled_edges[3] = e3;
     sampled_edges[4] = e4;
@@ -1738,19 +1727,13 @@ bool GraphSearch::sample111(
     int num_u_in_edges = distance(u_in_edges_left_it, u_in_edges_right_it);
     if (num_u_in_edges == 0)
         return false;
-    int u_in_edges_randidx = rand_r(&seed) % num_u_in_edges;
-    int e0_id = *(u_in_edges_left_it + u_in_edges_randidx);
-    u_in_edges_randidx = rand_r(&seed) % num_u_in_edges;
-    int e1_id = *(u_in_edges_left_it + u_in_edges_randidx);
+    vector<int> u_in_edges_in_range(u_in_edges_left_it, u_in_edges_right_it);
+    random_unique(u_in_edges_in_range.begin(), u_in_edges_in_range.end(), 2, seed);
 
-    vector<int> e0_e1_ids {e0_id, e1_id};
     // sort e0 - e2 ids and reassign,
-    sort(e0_e1_ids.begin(), e0_e1_ids.end());
-    e0_id = e0_e1_ids[0];
-    e1_id = e0_e1_ids[1];
-    if(containDuplicates({e0_id, e1_id, e2_id})) // e0, e1, e2 must have unique ids
-        return false;
-
+    sort(u_in_edges_in_range.begin(), u_in_edges_in_range.end());
+    int e0_id = u_in_edges_in_range[0];
+    int e1_id = u_in_edges_in_range[1];
     Edge e0 = _g->edges()[e0_id];
     Edge e1 = _g->edges()[e1_id];
     int a = e0.source();
@@ -2238,8 +2221,8 @@ long long int GraphSearch::sixNode109PreprocessSamplingWeights(
         );
         int num_e_dst_out_edges = distance(e_dst_out_edges_left_it, e_dst_out_edges_right_it);
         long long int n_out_select_2 = 0;
-        if (num_e_src_in_edges >= 2) 
-            n_out_select_2 = (long long int) num_e_src_in_edges * (num_e_src_in_edges - 1) / 2;
+        if (num_e_dst_out_edges >= 2) 
+            n_out_select_2 = (long long int) num_e_dst_out_edges * (num_e_dst_out_edges - 1) / 2;
 
         e2_sampling_weights[i] = (long long int) n_in_select_2 * n_out_select_2;
         W += e2_sampling_weights[i];
