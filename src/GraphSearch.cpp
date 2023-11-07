@@ -1567,12 +1567,14 @@ bool GraphSearch::sample110(
     int iter,
     mt19937& eng,
     unique_ptr<discrete_distribution<>>& e1_weights_distr,
-    vector<long long int>* ei_sampling_weights, // pseudo input arg
-    vector<long long int>* e3_sampling_weights,
+    vector<long long int>* ei_sampling_weights_ptr, // pseudo input arg
+    vector<long long int>* e3_sampling_weights_ptr,
     vector<Edge>& sampled_edges)
 {
     unsigned int seed = time(NULL) ^ omp_get_thread_num() ^ static_cast<unsigned int>(iter);
     sampled_edges.clear();
+
+    vector<long long int>& e3_sampling_weights = *e3_sampling_weights_ptr;
 
     /* Sample e1 using e1_weights_distr */
     int e1_id = (*e1_weights_distr)(eng);
@@ -1632,6 +1634,7 @@ bool GraphSearch::sample110(
         return false;
     if (e4.time() > e0.time() + _delta)
         return false;
+    sampled_edges[4] = e4;
 
     // /* Sample e3 in [t_e1, t_e1 + delta] from inEdges(v) using e3_sampling_weights */
     const vector<int>& v_in_edges = _g->nodes()[v].inEdges();
@@ -1647,10 +1650,10 @@ bool GraphSearch::sample110(
     int num_v_in_edges = distance(v_in_edges_left_it, v_in_edges_right_it);
     if (num_v_in_edges == 0)
         return false;
-    vector<int> cur_e3_weights(num_u_in_edges, 0);
+    vector<int> cur_e3_weights(num_v_in_edges, 0);
     for(int i = 0; i < cur_e3_weights.size(); i++)
     {
-        cur_e3_weights[i] = (*e3_sampling_weights)[*(v_in_edges_left_it+i)];
+        cur_e3_weights[i] = e3_sampling_weights[*(v_in_edges_left_it+i)];
     }
     discrete_distribution<> e3_weights_distr(cur_e3_weights.begin(), cur_e3_weights.end());
     int e3_id = *(v_in_edges_left_it + e3_weights_distr(eng));
@@ -1658,7 +1661,7 @@ bool GraphSearch::sample110(
     int c = e3.source();
     if ( containDuplicates({u, v, a, b, c}))
         return false;
-    if (e3.time() > e0.time() + _delta)
+    if (e3.time() > e0.time() + _delta || e3_id >= e4_id)
         return false;
     sampled_edges[3] = e3;
 
@@ -1686,7 +1689,7 @@ bool GraphSearch::sample110(
         return false;
     if (e2_id <= e1_id)
         return false;
-    sampled_edges[3] = e3;
+    sampled_edges[2] = e2;
 
     return true;
 }
@@ -2557,8 +2560,12 @@ vector<float> GraphSearch::sixNodePathSample(const Graph &g, int spanning_tree_n
     vector<long long int> e2_sampling_weights;
     vector<long long int> e3_sampling_weights;
 
+    Timer t;
+    t.Start();
     W = preprocess_funcs[spanning_tree_no](
         e1_sampling_weights, e2_sampling_weights, e3_sampling_weights);
+    t.Stop();
+    cout << "preprocess time: " << t.Seconds() << endl;
 
     cout << "W: " << W << endl;
     // cout << "e3_sampling_weights: ";
@@ -2597,7 +2604,7 @@ vector<float> GraphSearch::sixNodePathSample(const Graph &g, int spanning_tree_n
         e_left_sampling_weights = &e1_sampling_weights;
     }
     
-
+    t.Start();
     if (num_of_threads > 1)
     {
         // prepare omp
@@ -2630,10 +2637,12 @@ vector<float> GraphSearch::sixNodePathSample(const Graph &g, int spanning_tree_n
         motifs_cnts = sixNodeSampleAndCheckMotif(
             max_trial, spanning_tree_no, e_center_weight_distr, e_left_sampling_weights, e_right_sampling_weights);
     }
+    t.Stop();
+    cout << "sample time: " << t.Seconds() << endl;
 
-    cout << "motifs_cnts: " << motifs_cnts[0] << endl;
-    cout << "motifs_cnts: " << motifs_cnts[1] << endl;
-    cout << "motifs_cnts: " << motifs_cnts[2] << endl;
+    // cout << "motifs_cnts: " << motifs_cnts[0] << endl;
+    // cout << "motifs_cnts: " << motifs_cnts[1] << endl;
+    // cout << "motifs_cnts: " << motifs_cnts[2] << endl;
 
     vector<float> estimted_cnts = estimate_motif_general(motifs_cnts, max_trial, W);
 

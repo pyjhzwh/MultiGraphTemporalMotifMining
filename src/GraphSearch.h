@@ -150,8 +150,8 @@ public:
         int iter,
         std::mt19937& eng,
         std::unique_ptr<std::discrete_distribution<>>& e3_weights_distr,
-        std::vector<long long int>* ei_sampling_weights,
-        std::vector<long long int>* ej_sampling_weights,
+        std::vector<long long int>* ei_sampling_weights_ptr,
+        std::vector<long long int>* ej_sampling_weights_ptr,
         std::vector<Edge>& sampled_edges
         );
 
@@ -159,8 +159,8 @@ public:
         int iter,
         std::mt19937& eng,
         std::unique_ptr<std::discrete_distribution<>>& e3_weights_distr,
-        std::vector<long long int>* ei_sampling_weights,
-        std::vector<long long int>* ej_sampling_weights,
+        std::vector<long long int>* ei_sampling_weights_ptr,
+        std::vector<long long int>* ej_sampling_weights_ptr,
         std::vector<Edge>& sampled_edges
         );
 
@@ -168,8 +168,8 @@ public:
         int iter,
         std::mt19937& eng,
         std::unique_ptr<std::discrete_distribution<>>& e1_weights_distr,
-        std::vector<long long int>* ei_sampling_weights,
-        std::vector<long long int>* e3_sampling_weights,
+        std::vector<long long int>* ei_sampling_weights_ptr,
+        std::vector<long long int>* e3_sampling_weights_ptr,
         std::vector<Edge>& sampled_edges
         );
 
@@ -177,8 +177,8 @@ public:
         int iter,
         std::mt19937& eng,
         std::unique_ptr<std::discrete_distribution<>>& e2_weights_distr,
-        std::vector<long long int>* ei_sampling_weights,
-        std::vector<long long int>* e3_sampling_weights,
+        std::vector<long long int>* ei_sampling_weights_ptr,
+        std::vector<long long int>* e3_sampling_weights_ptr,
         std::vector<Edge>& sampled_edges
         );
 
@@ -186,8 +186,8 @@ public:
         int iter,
         std::mt19937& eng,
         std::unique_ptr<std::discrete_distribution<>>& e2_weights_distr,
-        std::vector<long long int>* e1_sampling_weights,
-        std::vector<long long int>* e3_sampling_weights,
+        std::vector<long long int>* e1_sampling_weights_ptr,
+        std::vector<long long int>* e3_sampling_weights_ptr,
         std::vector<Edge>& sampled_edges
         );
 
