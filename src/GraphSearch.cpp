@@ -1699,12 +1699,14 @@ bool GraphSearch::sample111(
     int iter,
     mt19937& eng,
     unique_ptr<discrete_distribution<>>& e2_weights_distr,
-    vector<long long int>* ei_sampling_weights, // pseudo input arg
-    vector<long long int>* e3_sampling_weights,
+    vector<long long int>* ei_sampling_weights_ptr, // pseudo input arg
+    vector<long long int>* e3_sampling_weights_ptr,
     vector<Edge>& sampled_edges)
 {
     unsigned int seed = time(NULL) ^ omp_get_thread_num() ^ static_cast<unsigned int>(iter);
     sampled_edges.clear();
+
+    vector<long long int>& e3_sampling_weights = *e3_sampling_weights_ptr;
 
     /* Sample e2 using e2_weights_distr */
     int e2_id = (*e2_weights_distr)(eng);
@@ -1734,13 +1736,13 @@ bool GraphSearch::sample111(
     random_unique(u_in_edges_in_range.begin(), u_in_edges_in_range.end(), 2, seed);
 
     // sort e0 - e2 ids and reassign,
-    sort(u_in_edges_in_range.begin(), u_in_edges_in_range.end());
+    sort(u_in_edges_in_range.begin(), u_in_edges_in_range.begin() + 2);
     int e0_id = u_in_edges_in_range[0];
     int e1_id = u_in_edges_in_range[1];
     Edge e0 = _g->edges()[e0_id];
     Edge e1 = _g->edges()[e1_id];
     int a = e0.source();
-    int b = e0.source();
+    int b = e1.source();
     if ( containDuplicates({u, v, a, b}))
         return false;
     if (e0.time() < e2.time() - _delta)
@@ -1766,7 +1768,7 @@ bool GraphSearch::sample111(
     vector<int> cur_e3_weights(num_v_out_edges, 0);
     for(int i = 0; i < cur_e3_weights.size(); i++)
     {
-        cur_e3_weights[i] = (*e3_sampling_weights)[*(v_out_edges_left_it + i)];
+        cur_e3_weights[i] = e3_sampling_weights[*(v_out_edges_left_it + i)];
     }
     discrete_distribution<> e3_weights_distr(cur_e3_weights.begin(), cur_e3_weights.end());
     int e3_id = *(v_out_edges_left_it + e3_weights_distr(eng));
@@ -2395,7 +2397,7 @@ long long int GraphSearch::sixNode111PreprocessSamplingWeights(
             int num_e_src_in_edges = distance(e_src_in_edges_left_it, e_src_in_edges_right_it);
             long long int n_select_2 = 0;
             if (num_e_src_in_edges >= 2)
-                n_select_2 = (long long int)(num_e_src_in_edges * num_e_src_in_edges-1) / 2;    
+                n_select_2 = (long long int)num_e_src_in_edges * (num_e_src_in_edges - 1) / 2;    
 
             // e_dst_out_edges.index() > e.index()
             vector<int>::const_iterator e_dst_out_edges_left_it = upper_bound(
