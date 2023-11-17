@@ -169,7 +169,7 @@ public:
         std::mt19937& eng,
         std::unique_ptr<std::discrete_distribution<>>& e1_weights_distr,
         std::vector<long long int>* ei_sampling_weights_ptr,
-        std::vector<long long int>* e3_sampling_weights_ptr,
+        std::vector<long long int>* e2_sampling_weights_ptr,
         std::vector<Edge>& sampled_edges
         );
 

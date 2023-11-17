@@ -103,4 +103,5 @@ bool Tests::assertSameGraphMatch(vector<GraphMatch> gm1, vector<GraphMatch>gm2, 
 		j++;
 	}
 	// assert(sorted_hEdges_gm1 == sorted_hEdges_gm2);
+	return true;
 }
