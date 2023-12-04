@@ -1956,7 +1956,79 @@ vector<long long int> GraphSearch::check_motif108(vector<Edge> &sampled_edges)
     Edge e3 = sampled_edges[3];
     Edge e4 = sampled_edges[4];
 
+    int w = e0.source();
+    int u = e1.source();
+    int v = e2.source();
+    int s = e0.dest();
+    int v_prime = e3.dest();
+    int u_prime = e4.dest();
+
+    // M0: spanning tree 108
     motifs_cnts[0] = 1;
+
+    // M1: motif 73
+    bool u_prime_w_exist = false;
+    bool u_prime_u_exist = false;
+    bool u_prime_v_exist = false;
+    vector<int>::iterator u_prime_w_edges_left_it;
+    vector<int>::iterator u_prime_w_edges_right_it;
+    vector<int>::iterator u_prime_u_edges_left_it;
+    vector<int>::iterator u_prime_u_edges_right_it;
+    vector<int>::iterator u_prime_v_edges_left_it;
+    vector<int>::iterator u_prime_v_edges_right_it;
+    int num_u_prime_w_edges = 0;
+    int num_u_prime_u_edges = 0;
+    int num_u_prime_v_edges = 0;
+
+    if (_g->nodeEdges().find(u_prime) != _g->nodeEdges().end())
+    {
+        if (_g->nodeEdges()[u_prime].find(w) != _g->nodeEdges()[u_prime].end())
+        {
+            u_prime_w_exist = true;
+            vector<int>& u_prime_w_edges_ids = _g->nodeEdges()[u_prime][w];
+            // find idx < e0.index()
+            u_prime_w_edges_right_it = lower_bound(
+                u_prime_w_edges_ids.begin(), u_prime_w_edges_ids.end(), e0.index()
+            );
+            // find timestamp >= e4.time() - _delta
+            u_prime_w_edges_left_it = lower_bound(
+                u_prime_w_edges_ids.begin(), u_prime_w_edges_ids.end(), e4.time() - _delta,
+                [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+            );
+            num_u_prime_w_edges = distance(u_prime_w_edges_left_it, u_prime_w_edges_right_it);
+        }
+        if (_g->nodeEdges()[u_prime].find(u) != _g->nodeEdges()[u_prime].end())
+        {
+            u_prime_u_exist = true;
+            vector<int>& u_prime_u_edges_ids = _g->nodeEdges()[u_prime][u];
+            // find idx < e1.index()
+            u_prime_u_edges_right_it = lower_bound(
+                u_prime_u_edges_ids.begin(), u_prime_u_edges_ids.end(), e1.index()
+            );
+            // find timestamp >= e0.time()
+            u_prime_u_edges_left_it = lower_bound(
+                u_prime_u_edges_ids.begin(), u_prime_u_edges_ids.end(), e0.time(),
+                [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+            );
+            num_u_prime_u_edges = distance(u_prime_u_edges_left_it, u_prime_u_edges_right_it);
+        }
+        if (_g->nodeEdges()[u_prime].find(v) != _g->nodeEdges()[u_prime].end())
+        {
+            u_prime_v_exist = true;
+            vector<int>& u_prime_v_edges_ids = _g->nodeEdges()[u_prime][v];
+            // find idx < e2.index()
+            u_prime_v_edges_right_it = lower_bound(
+                u_prime_v_edges_ids.begin(), u_prime_v_edges_ids.end(), e2.index()
+            );
+            // find timestamp >= e1.time()
+            u_prime_v_edges_left_it = lower_bound(
+                u_prime_v_edges_ids.begin(), u_prime_v_edges_ids.end(), e1.time(),
+                [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+            );
+            num_u_prime_v_edges = distance(u_prime_v_edges_left_it, u_prime_v_edges_right_it);
+        }
+        motifs_cnts[1] = num_u_prime_w_edges * num_u_prime_u_edges * num_u_prime_v_edges;
+    }
 
     return motifs_cnts;
 }
@@ -2025,7 +2097,7 @@ vector<long long int> GraphSearch::check_motif112(vector<Edge> &sampled_edges)
     vector<int>::iterator s_w_edges_left_it;
     vector<int>::iterator s_w_edges_right_it;
 
-    // M1: 3-path
+    // M1: 5-path
     motifs_cnts[0] = 1;
 
     // M2: 3-tailed triangle
@@ -2625,8 +2697,8 @@ vector<float> GraphSearch::sixNodePathSample(const Graph &g, int spanning_tree_n
     t.Stop();
     cout << "sample time: " << t.Seconds() << endl;
 
-    // cout << "motifs_cnts: " << motifs_cnts[0] << endl;
-    // cout << "motifs_cnts: " << motifs_cnts[1] << endl;
+    cout << "motifs_cnts: " << motifs_cnts[0] << endl;
+    cout << "motifs_cnts: " << motifs_cnts[1] << endl;
     // cout << "motifs_cnts: " << motifs_cnts[2] << endl;
 
     vector<float> estimted_cnts = estimate_motif_general(motifs_cnts, max_trial, W);
