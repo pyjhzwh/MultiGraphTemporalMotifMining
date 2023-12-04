@@ -1,0 +1,16 @@
+nodedef> name INT
+0
+1
+2
+3
+4
+5
+edgedef> node1 INT, node2 INT, time INT
+0, 1, 0
+1, 2, 1
+0, 3, 2
+3, 2, 3
+0, 4, 4
+4, 2, 5
+2, 5, 6
+5, 0, 7
