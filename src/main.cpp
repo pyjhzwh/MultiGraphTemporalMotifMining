@@ -109,7 +109,7 @@ int main(int argc, char **argv)
                 std::cout << "total time search.findOrderedSubgraphs (s) is: " << avg_time << " s." << std::endl;
             }
         }
-        else
+        else if (algo == 1)
         {
             GraphSearch search;
             int num_of_threads = args.num_of_threads;
@@ -133,6 +133,63 @@ int main(int argc, char **argv)
                 cout << "M" << i << ": " << results[i] << ", ";
             cout << endl;
             std::cout << "total time searchPB.findOrderedSubgraphs (s) is: " << avg_time << " s." << std::endl;
+        }
+        else
+        {
+            // Try each of the requested query graphs
+            for (int i = 0; i < args.queryFnames().size(); i++)
+            {
+                const string &queryFname = args.queryFnames()[i];
+                if (args.verbose())
+                    cout << "Loading query graph from " << queryFname << endl;
+                DataGraph h;
+                h = FileIO::loadGenericGDF(queryFname);
+                if (args.verbose())
+                {
+                    h.disp();
+                    cout << h.nodes().size() << " nodes, " << h.edges().size() << " edges" << endl;
+                    if (h.numEdges() < MAX_NUM_EDGES_FOR_DISP)
+                        h.disp();
+                    cout << endl;
+                }
+
+                if (h.nodeAttributesDef() != g.nodeAttributesDef())
+                    throw "Node attribute definitions don't match between the query graph and data graph.";
+                if (h.edgeAttributesDef() != h.edgeAttributesDef())
+                    throw "Edge attribute definitionsgit p don't match between the query graph and data graph.";
+
+                MatchCriteria_DataGraph criteria;
+                if (args.verbose())
+                    cout << "Filtering data graph to improve query performance." << endl;
+                DataGraph g2;
+                g2.setNodeAttributesDef(g.nodeAttributesDef());
+                g2.setEdgeAttributesDef(g.edgeAttributesDef());
+                GraphFilter::filter(g, h, criteria, g2);
+                GraphSearch search;
+                int num_of_threads = args.num_of_threads;
+                if (num_of_threads * PARTITION_PER_THREAD > g.edges().size())
+                {
+                    num_of_threads = 1;
+                }
+                cout << "Running in " << num_of_threads << " threads" << endl;
+                omp_set_num_threads(num_of_threads);
+                vector<vector<int>> spanning_tree = {{0,2}, {1}};
+                cout << "========== Spanning tree sampling ==========" << endl;
+                const long long int max_trial = args.max_trial();
+                cout << "max_trial: " << max_trial << endl;
+                vector<float> results;
+                Timer t;
+                double avg_time = 0;
+                t.Start();
+                results = search.SpanningTreeSample(
+                    g2, h, num_of_threads, PARTITION_PER_THREAD, delta, max_trial, spanning_tree);
+                t.Stop();
+                avg_time += t.Seconds();
+                for (int i = 0; i < results.size(); i++)
+                    cout << "M" << i << ": " << results[i] << ", ";
+                cout << endl;
+                std::cout << "total time searchPB.findOrderedSubgraphs (s) is: " << avg_time << " s." << std::endl;
+            }
         }
         if (args.verbose())
             cout << "Done!\n"

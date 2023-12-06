@@ -20,6 +20,91 @@
 #include <memory>
 #include "GraphMatch.h"
 
+class Dependency
+{
+public:
+    // int vertex_id;
+    int edge_id;
+    int num_dep_edge;
+    std::vector<std::vector<std::vector<Edge>>> dep_edges; // edge is dependent on dep_edge
+    // dep_edge is in or out of vertex
+    std::vector<std::vector<std::vector<bool>>> dep_edges_in_out; // 0: in, 1: out
+    // dep_edge.time < or > edge.time
+    std::vector<std::vector<std::vector<bool>>> dep_edges_ording; // 0: smaller, 1: larger
+    // Dependency(int vertex_id, int edge_id) : vertex_id(vertex_id), edge_id(edge_id) {};
+    Dependency(int edge_id = -1) : edge_id(edge_id), num_dep_edge(0) {
+        dep_edges.resize(2);
+        dep_edges_in_out.resize(2);
+        dep_edges_ording.resize(2);
+    };
+
+    void add_dep_edge(int src_dst, Edge dep_edge, bool in_out, bool edge_ording, bool check_same = false)
+    {
+        int check_vertex;
+        if (check_same)
+        {
+            check_vertex = in_out ? dep_edge.source() : dep_edge.dest();
+        }
+        else
+        {
+            check_vertex = in_out ? dep_edge.dest() : dep_edge.source();
+        }
+        for(int i = 0; i < dep_edges[src_dst].size(); i++)
+        {
+            int other_vertex;
+            if (check_same)
+            {
+                other_vertex = in_out ? dep_edges[src_dst][i][0].source() : dep_edges[src_dst][i][0].dest();
+            }
+            else
+            {
+                other_vertex = in_out ? dep_edges[src_dst][i][0].dest() : dep_edges[src_dst][i][0].source();
+            }
+            if (check_vertex == other_vertex)
+            {
+                dep_edges[src_dst][i].push_back(dep_edge);
+                dep_edges_in_out[src_dst][i].push_back(in_out);
+                dep_edges_ording[src_dst][i].push_back(edge_ording);
+                num_dep_edge++;
+                return;
+            }
+        }
+        dep_edges[src_dst].push_back({dep_edge});
+        dep_edges_in_out[src_dst].push_back({in_out});
+        dep_edges_ording[src_dst].push_back({edge_ording});
+        num_dep_edge++;
+    }
+
+    void print_info() {
+        std::cout << "edge " << edge_id << " has " << num_dep_edge << " dependencies." << std::endl;
+        if (num_dep_edge == 0)
+            return;
+        for(int j = 0; j < dep_edges.size(); j++) // src dep or dst dep
+        {
+            if (j == 0)
+                std::cout << "src deps: ";
+            else
+                std::cout << "dst deps: ";
+            for(int k = 0; k < dep_edges[j].size(); k++)
+            {
+                std::cout << "{";
+                for(int l = 0; l < dep_edges[j][k].size(); l++)
+                {
+                    bool in_out = dep_edges_in_out[j][k][l];
+                    bool ordering = dep_edges_ording[j][k][l];
+                    std::string in_out_str = in_out ? "out" : "in";
+                    std::string ordering_str = ordering ? ">" : "<";
+                    std::cout << "(" << dep_edges[j][k][l].index()<< ", " \
+                         << in_out_str << ", " << ordering_str << "), ";
+                }
+                std::cout << "}, ";
+                
+            }
+            std::cout << std::endl;
+        }
+    }
+};
+
 /**
  * Main class for performing subgraph searches.
  */
@@ -225,6 +310,17 @@ public:
             { 111, std::bind(&GraphSearch::check_motif111, this, std::placeholders::_1)},
             { 112, std::bind(&GraphSearch::check_motif112, this, std::placeholders::_1)},
         };
+
+    std::vector<Dependency> analyze_spanning_tree(std::vector<std::vector<int>>& spanning_tree);
+
+    long long int preprocess(
+        std::vector<std::vector<int>> &spanning_tree, std::vector<Dependency> &dep_edges,
+        std::vector<std::vector<long long int>>& e_sampling_weights);
+
+    std::vector<float> SpanningTreeSample(const Graph &g, const Graph &h,
+                                                int num_of_threads, int partition_per_thread,
+                                                int delta, long long int max_trial, 
+                                                std::vector<std::vector<int>>& spanning_tree);
     
 
 private:
