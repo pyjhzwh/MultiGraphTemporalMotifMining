@@ -2713,6 +2713,9 @@ vector<Dependency> GraphSearch::analyze_spanning_tree(vector<vector<int>>& spann
     vector<Dependency> dep_edges(_h->numEdges(), Dependency(-1));
     // map from node_id to vector of edges in spanning tree that connect to the node
     unordered_map<int, vector<int>> node2edges;
+    // if this edge has been used as dependent edge before
+    // every edge should be at most used as dependency once
+    unordered_set<int> visited;
     for(int j = 0; j < spanning_tree[0].size(); j++)
     {
         int m_edge_id = spanning_tree[0][j];
@@ -2744,6 +2747,8 @@ vector<Dependency> GraphSearch::analyze_spanning_tree(vector<vector<int>>& spann
                 for (int k = 0; k < node2edges[connected_node].size(); k++)
                 {
                     int dep_edge_id = node2edges[connected_node][k];
+                    if (visited.find(dep_edge_id) != visited.end())
+                        continue;
                     dep.add_dep_edge(
                         src_dst,
                         _h->edges()[dep_edge_id],
@@ -2751,6 +2756,7 @@ vector<Dependency> GraphSearch::analyze_spanning_tree(vector<vector<int>>& spann
                         dep_edge_id > m_edge_id,
                         i == 1
                         );
+                    visited.insert(dep_edge_id);
                 }
             }
             
@@ -2872,7 +2878,7 @@ long long int GraphSearch::preprocess(
                         }
                         if (select_n > 1)
                         {
-                            if (tmp_src_dst_weight > select_n)
+                            if (tmp_src_dst_weight >= select_n)
                             {
                                 // select n from m
                                 long long int dividend = 1;
@@ -2895,9 +2901,9 @@ long long int GraphSearch::preprocess(
                     }
 
                 }
-                e_sampling_weights[s][i] = W_src_dst[0] * W_src_dst[1];
+                e_sampling_weights[m_edge_id][i] = W_src_dst[0] * W_src_dst[1];
                 if (s == spanning_tree.size() - 1)
-                    W += e_sampling_weights[s][i];
+                    W += e_sampling_weights[m_edge_id][i];
             }
         }
     }
