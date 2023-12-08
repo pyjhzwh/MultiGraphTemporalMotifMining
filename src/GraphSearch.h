@@ -156,7 +156,7 @@ public:
         const Graph &g, int num_of_threads=1, int partition_per_thread=1,
         int delta = INT_MAX, long long int max_trial = 2e5);
 
-    std::vector<long long int> sampleAndCheckMotif(
+    std::vector<long long int> threePathSampleAndCheckMotif(
         long long int max_trial, std::discrete_distribution<>& edge_in_mult_out_weights,
         std::vector<std::vector<std::vector<int>::const_iterator>>& sampling_neigh_edges_it);
 
@@ -316,6 +316,22 @@ public:
     long long int preprocess(
         std::vector<std::vector<int>> &spanning_tree, std::vector<Dependency> &dep_edges,
         std::vector<std::vector<long long int>>& e_sampling_weights);
+
+    std::vector<Edge> sampleSpanningTree(
+        int iter,
+        std::mt19937 &eng,
+        std::discrete_distribution<> &e_center_weight_distr,
+        std::vector<std::vector<long long int>>& e_sampling_weights,
+        std::vector<std::vector<int>> &spanning_tree,
+        std::vector<Dependency> &dep_edges
+        );
+
+    std::vector<long long int> sampleAndCheckMotifSpanningTree(
+        long long int max_trial,
+        std::vector<std::vector<long long int>>& e_sampling_weights,
+        std::vector<std::vector<int>> &spanning_tree,
+        std::vector<Dependency> &dep_edges
+    );
 
     std::vector<float> SpanningTreeSample(const Graph &g, const Graph &h,
                                                 int num_of_threads, int partition_per_thread,
