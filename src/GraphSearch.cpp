@@ -2773,6 +2773,51 @@ vector<Dependency> GraphSearch::analyze_spanning_tree(vector<vector<int>>& spann
     return dep_edges;
 }
 
+map<pair<int, int>, vector<int>> GraphSearch::analyze_exatra_edges(vector<int>& flattened_spanning_tree)
+{
+    map<pair<int, int>, vector<int>> hash;
+    vector<int> extra_edges; // extra edges in h that are not in the spanning tree
+    int sp_idx = 0;
+    int h_idx = 0;    
+    while(h_idx < _h->numEdges())
+    {
+        if (sp_idx < flattened_spanning_tree.size() && flattened_spanning_tree[sp_idx] == h_idx)
+        {
+            sp_idx++;
+            h_idx++;
+        }
+        else
+        {
+            extra_edges.push_back(h_idx);
+            h_idx++;
+        }
+    }
+    // key0: largest spanning tree edge id that < extra edge id (-1 if not exist)
+    // key1: smallest spanning tree edge id that > extra edge id (-1 if not exist)
+    // pair<key0, key1> -> vector of extra edge id in that range
+    for(int i = 0; i < extra_edges.size(); i++)
+    {
+        int extra_edge_id = extra_edges[i];
+        int left_spanning_tree_edge_id = -1;
+        int right_spanning_tree_edge_id = -1;
+        for(int j = 0; j < flattened_spanning_tree.size(); j++)
+        {
+            if (flattened_spanning_tree[j] < extra_edge_id)
+            {
+                left_spanning_tree_edge_id = flattened_spanning_tree[j];
+            }
+            else if (flattened_spanning_tree[j] > extra_edge_id)
+            {
+                right_spanning_tree_edge_id = flattened_spanning_tree[j];
+                break;
+            }
+        }
+        hash[make_pair(left_spanning_tree_edge_id, right_spanning_tree_edge_id)].push_back(extra_edge_id);
+    }
+
+    return hash;
+}
+
 
 long long int GraphSearch::preprocess(
     vector<vector<int>> &spanning_tree, vector<Dependency> &dep_edges,
@@ -3066,9 +3111,11 @@ bool GraphSearch::checkSpanningTree(vector<Edge> &sampled_edges, vector<int> &fl
         if (i == 0)
         {
             _firstEdgeTime = g_e.time();
+            _firstEdgeid = g_e.index();
+            _upper_time = _firstEdgeTime + _delta;
         }
         // time ordering and delta constraint not satisfied
-        else if(g_e.index() <= prevEdgeId || g_e.time() > _firstEdgeTime + _delta)
+        else if(g_e.index() <= prevEdgeId || g_e.time() > _upper_time)
         {
             return false;
         }
@@ -3090,7 +3137,8 @@ bool GraphSearch::checkSpanningTree(vector<Edge> &sampled_edges, vector<int> &fl
 
 vector<long long int> GraphSearch::sampleAndCheckMotifSpanningTree(
     long long int max_trial, vector<vector<long long int>>& e_sampling_weights,
-    vector<vector<int>> &spanning_tree, vector<Dependency> &dep_edges
+    vector<vector<int>> &spanning_tree, vector<int> &flattened_spanning_tree,
+    vector<Dependency> &dep_edges
 )
 {
     random_device rd;
@@ -3102,16 +3150,6 @@ vector<long long int> GraphSearch::sampleAndCheckMotifSpanningTree(
     discrete_distribution<> e_center_weight_distr(
         e_sampling_weights[e_center_idx].begin(), e_sampling_weights[e_center_idx].end());
 
-    // the edge index of the spanning tree in motif h, sorted by index
-    vector<int> flattened_spanning_tree;
-    for(int i = 0; i < spanning_tree.size(); i++)
-    {
-        for(int j = 0; j < spanning_tree[i].size(); j++)
-        {
-            flattened_spanning_tree.push_back(spanning_tree[i][j]);
-        }
-    }
-    sort(flattened_spanning_tree.begin(), flattened_spanning_tree.end());
 
     for(long long int trial = 0; trial < max_trial; trial++)
     {
@@ -3126,7 +3164,7 @@ vector<long long int> GraphSearch::sampleAndCheckMotifSpanningTree(
         // cout << "is_valid: " << is_valid << endl;
         // if (is_valid)
         // {
-        //     deriveMotifCounts(sampled_edges, motifs_cnts);
+        //     long long int motif_cnt = deriveMotifCounts(sampled_edges);
         // }
     }
     return {0};
@@ -3151,6 +3189,17 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
     int n = _g->numNodes();
     int m = _g->numEdges();
 
+    // the edge index of the spanning tree in motif h, sorted by index
+    vector<int> flattened_spanning_tree;
+    for(int i = 0; i < spanning_tree.size(); i++)
+    {
+        for(int j = 0; j < spanning_tree[i].size(); j++)
+        {
+            flattened_spanning_tree.push_back(spanning_tree[i][j]);
+        }
+    }
+    sort(flattened_spanning_tree.begin(), flattened_spanning_tree.end());
+
     // vector<vector<int>>& spanning_tree represents the order of preprocessing weights
     // we will first compute weights for spanning_tree[1], then spanning_tree[2], ...
     // Note that spanning_tree[0] are the leaves of the spanning tree that just need uniform sampling
@@ -3161,6 +3210,22 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
     {
         dep_edges[i].print_info();
     }
+
+    // store the lower and upperbound respect to spanning tree edges of the extra edges that are not in the spanning tree
+    // SPTreeRangeEdges: (SPtree edge_id 1, SPtree edge_id 2, vector<int> h_edge_ids of extra edges)
+    // the edges in the vector<int> have the index range of (SPtree edge_id 1, SPtree edge_id 2)
+    // edges with same range are counted by n-pointer technique (linear time complexity)
+    map<pair<int, int>, vector<int>> sp_tree_range_edges = analyze_exatra_edges(flattened_spanning_tree); 
+    // cout << "sp_tree_range_edges: " << endl;
+    // for(auto &[k, vs]: sp_tree_range_edges)
+    // {
+    //     cout << "[ " << k.first << "," << k.second << " ] : ";
+    //     for(auto v: vs)
+    //     {
+    //         cout << v << ", ";
+    //     }
+    //     cout << endl;
+    // }
 
     vector<vector<long long int>> e_sampling_weights(m_spanning_tree);
     long long int W = preprocess(spanning_tree, dep_edges, e_sampling_weights);
@@ -3176,7 +3241,7 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
     // }
     vector<long long int> motifs_cnts(3, 0);
     motifs_cnts = sampleAndCheckMotifSpanningTree(
-        max_trial, e_sampling_weights, spanning_tree, dep_edges);
+        max_trial, e_sampling_weights, spanning_tree, flattened_spanning_tree, dep_edges);
 
     return {0};
 }

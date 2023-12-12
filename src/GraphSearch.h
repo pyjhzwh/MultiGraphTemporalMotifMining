@@ -313,6 +313,9 @@ public:
 
     std::vector<Dependency> analyze_spanning_tree(std::vector<std::vector<int>>& spanning_tree);
 
+    std::map<std::pair<int, int>, std::vector<int>> analyze_exatra_edges(
+        std::vector<int>& flattened_spanning_tree);
+
     long long int preprocess(
         std::vector<std::vector<int>> &spanning_tree, std::vector<Dependency> &dep_edges,
         std::vector<std::vector<long long int>>& e_sampling_weights);
@@ -335,6 +338,7 @@ public:
         long long int max_trial,
         std::vector<std::vector<long long int>>& e_sampling_weights,
         std::vector<std::vector<int>> &spanning_tree,
+        std::vector<int> &flattened_spanning_tree,
         std::vector<Dependency> &dep_edges
     );
 
