@@ -3052,6 +3052,42 @@ vector<Edge> GraphSearch::sampleSpanningTree(
 }
 
 
+bool GraphSearch::checkSpanningTree(vector<Edge> &sampled_edges, vector<int> &flattened_spanning_tree)
+{
+    // Tables for mapping nodes and edges between the two graphs
+    _h2gNodes.clear();
+    _h2gNodes.resize(_h->numNodes(), -1);
+    int prevEdgeId;
+    for(int i = 0; i < flattened_spanning_tree.size(); i++)
+    {
+        int m_edge_id = flattened_spanning_tree[i];
+        Edge g_e = sampled_edges[m_edge_id]; // e in graph g
+        Edge h_e = _h->edges()[m_edge_id]; // e in motif h
+        if (i == 0)
+        {
+            _firstEdgeTime = g_e.time();
+        }
+        // time ordering and delta constraint not satisfied
+        else if(g_e.index() <= prevEdgeId || g_e.time() > _firstEdgeTime + _delta)
+        {
+            return false;
+        }
+        if (_h2gNodes[h_e.source()] == -1 && _h2gNodes[h_e.dest()] == -1)
+        {
+            _h2gNodes[h_e.source()] = g_e.source();
+            _h2gNodes[h_e.dest()] = g_e.dest();
+        }
+        // else if same node in h is mapped to different nodes in g, invalid
+        else if (_h2gNodes[h_e.source()] != -1 && _h2gNodes[h_e.source()] != g_e.source())
+            return false;
+        else if (_h2gNodes[h_e.dest()] != -1 && _h2gNodes[h_e.dest()] != g_e.dest())
+            return false;
+        prevEdgeId = g_e.index();
+    }
+    return true;
+}
+
+
 vector<long long int> GraphSearch::sampleAndCheckMotifSpanningTree(
     long long int max_trial, vector<vector<long long int>>& e_sampling_weights,
     vector<vector<int>> &spanning_tree, vector<Dependency> &dep_edges
@@ -3066,6 +3102,17 @@ vector<long long int> GraphSearch::sampleAndCheckMotifSpanningTree(
     discrete_distribution<> e_center_weight_distr(
         e_sampling_weights[e_center_idx].begin(), e_sampling_weights[e_center_idx].end());
 
+    // the edge index of the spanning tree in motif h, sorted by index
+    vector<int> flattened_spanning_tree;
+    for(int i = 0; i < spanning_tree.size(); i++)
+    {
+        for(int j = 0; j < spanning_tree[i].size(); j++)
+        {
+            flattened_spanning_tree.push_back(spanning_tree[i][j]);
+        }
+    }
+    sort(flattened_spanning_tree.begin(), flattened_spanning_tree.end());
+
     for(long long int trial = 0; trial < max_trial; trial++)
     {
         vector<Edge> sampled_edges = sampleSpanningTree(
@@ -3075,6 +3122,12 @@ vector<long long int> GraphSearch::sampleAndCheckMotifSpanningTree(
         //     cout << sampled_edges[i].index() << ", ";
         // }
         // cout << endl;
+        bool is_valid = checkSpanningTree(sampled_edges, flattened_spanning_tree);
+        // cout << "is_valid: " << is_valid << endl;
+        // if (is_valid)
+        // {
+        //     deriveMotifCounts(sampled_edges, motifs_cnts);
+        // }
     }
     return {0};
 }

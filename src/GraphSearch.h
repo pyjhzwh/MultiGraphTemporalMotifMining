@@ -326,6 +326,11 @@ public:
         std::vector<Dependency> &dep_edges
         );
 
+    bool checkSpanningTree(
+        std::vector<Edge> &sampled_edges,
+        std::vector<int> &flattened_spanning_tree
+        );
+
     std::vector<long long int> sampleAndCheckMotifSpanningTree(
         long long int max_trial,
         std::vector<std::vector<long long int>>& e_sampling_weights,
