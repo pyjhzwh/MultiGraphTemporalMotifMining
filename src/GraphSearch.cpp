@@ -3101,6 +3101,7 @@ vector<Edge> GraphSearch::sampleSpanningTree(
 bool GraphSearch::checkSpanningTree(
     vector<Edge> &sampled_edges, vector<int> &flattened_spanning_tree, vector<int> &h2gNodes)
 {
+    h2gNodes.clear();
     // Tables for mapping nodes between the two graphs
     unordered_map<int, int> g2hNodes;
     int prevEdgeId;
@@ -3300,12 +3301,10 @@ long long int GraphSearch::sampleAndCheckMotifSpanningTree(
     int e_center_idx = spanning_tree[spanning_tree.size() - 1][0];
     discrete_distribution<> e_center_weight_distr(
         e_sampling_weights[e_center_idx].begin(), e_sampling_weights[e_center_idx].end());
-
-    // local variables for each thread, should not use global _h2gNodes
-    vector<int> h2gNodes(_h->numNodes(), -1); // map from node_id in h to node_id in g
-
+    
     for(long long int trial = 0; trial < max_trial; trial++)
     {
+        vector<int> h2gNodes(_h->numNodes(), -1); // map from node_id in h to node_id in g
         vector<Edge> sampled_edges = sampleSpanningTree(
             trial, eng, e_center_weight_distr, e_sampling_weights, spanning_tree, dep_edges);
         // for(int i = 0; i < sampled_edges.size(); i++)
@@ -3410,9 +3409,10 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
             trial_motif_cnts[i] = sampleAndCheckMotifSpanningTree(
                 trial_num, e_sampling_weights, spanning_tree, flattened_spanning_tree, dep_edges, sp_tree_range_edges);
         }
-        # pragma omp parallel for reduction(+:motif_cnt)
+        // # pragma omp parallel for reduction(+:motif_cnt)
         for(int i = 0; i < num_of_threads * partition_per_thread; i++)
         {
+            // cout << "trial_motif_cnts[" << i << "]: " << trial_motif_cnts[i] << endl;
             motif_cnt += trial_motif_cnts[i];
         }
 
@@ -3422,9 +3422,9 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
         motif_cnt = sampleAndCheckMotifSpanningTree(
             max_trial, e_sampling_weights, spanning_tree, flattened_spanning_tree, dep_edges, sp_tree_range_edges);
     }
-    t.end();
+    t.Stop();
     cout << "sample time: " << t.Seconds() << endl;
-    // cout << "motif_cnt: " << motif_cnt << endl;
+    cout << "motif_cnt: " << motif_cnt << endl;
 
     float_t W_div_k = (float_t) W / max_trial;
     float estimated_cnt = (float) motif_cnt  * W_div_k;
