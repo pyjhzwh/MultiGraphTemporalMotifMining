@@ -3100,6 +3100,8 @@ vector<Edge> GraphSearch::sampleSpanningTree(
 bool GraphSearch::checkSpanningTree(vector<Edge> &sampled_edges, vector<int> &flattened_spanning_tree)
 {
     // Tables for mapping nodes between the two graphs
+    _h2gNodes.clear();
+    _h2gNodes.resize(_h->numNodes(), -1);
     unordered_map<int, int> g2hNodes;
     int prevEdgeId;
     for(int i = 0; i < flattened_spanning_tree.size(); i++)
@@ -3118,7 +3120,7 @@ bool GraphSearch::checkSpanningTree(vector<Edge> &sampled_edges, vector<int> &fl
         {
             return false;
         }
-        // else if different nodes in h is mapped to same node in g, invalid
+        // if different nodes in h is mapped to same node in g, invalid
         if(g2hNodes.find(g_e.source()) != g2hNodes.end() && g2hNodes[g_e.source()] != h_e.source())
             return false;
         if(g2hNodes.find(g_e.dest()) != g2hNodes.end() && g2hNodes[g_e.dest()] != h_e.dest())
@@ -3127,6 +3129,15 @@ bool GraphSearch::checkSpanningTree(vector<Edge> &sampled_edges, vector<int> &fl
             g2hNodes[g_e.source()] = h_e.source();
         if (g2hNodes.find(g_e.dest()) == g2hNodes.end())
             g2hNodes[g_e.dest()] = h_e.dest();
+        // if different nodes in g is mapped to same node in h, invalid
+        if (_h2gNodes[h_e.source()] != -1 && _h2gNodes[h_e.source()] != g_e.source())
+            return false;
+        if (_h2gNodes[h_e.dest()] != -1 && _h2gNodes[h_e.dest()] != g_e.dest())
+            return false;
+        if (_h2gNodes[h_e.source()] == -1)
+            _h2gNodes[h_e.source()] = g_e.source();
+        if (_h2gNodes[h_e.dest()] == -1)
+            _h2gNodes[h_e.dest()] = g_e.dest();
         prevEdgeId = g_e.index();
     }
     return true;
