@@ -2835,7 +2835,8 @@ long long int GraphSearch::preprocess(
     for(int s = 1; s < spanning_tree.size(); s++)
     {
         // motif edges in s'th level of spanning_tree
-        vector<int> &m_edges_in_level = spanning_tree[s];
+        // vector<int> &m_edges_in_level = spanning_tree[s];
+        #pragma omp parallel for reduction(+:W)
         for(int i = 0; i < _g->numEdges(); i++)
         {
             Edge e = _g->edges()[i];
@@ -2843,9 +2844,9 @@ long long int GraphSearch::preprocess(
             int v = e.dest();
             if (u == v)
                 continue;
-            for(int j = 0; j < m_edges_in_level.size(); j++)
+            for(int j = 0; j < spanning_tree[s].size(); j++)
             {
-                int m_edge_id = m_edges_in_level[j];
+                int m_edge_id = spanning_tree[s][j];
                 Dependency dep = dep_edges[m_edge_id];
                 // weights of the dependent edges that connect to e.source() and e.dest()
                 vector<long long int> W_src_dst(2, 1);
@@ -3378,7 +3379,12 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
     }
 
     vector<vector<long long int>> e_sampling_weights(m_spanning_tree);
+    Timer t;
+    t.Start();
     long long int W = preprocess(spanning_tree, dep_edges, e_sampling_weights);
+    t.Stop();
+    cout << "preprocess time: " << t.Seconds() << endl;
+
     cout << "W: " << W << endl;
     // for(int i = 0; i < e_sampling_weights.size(); i++)
     // {

@@ -167,7 +167,7 @@ int main(int argc, char **argv)
                 GraphFilter::filter(g, h, criteria, g2);
                 GraphSearch search;
                 int num_of_threads = args.num_of_threads;
-                if (num_of_threads * PARTITION_PER_THREAD > g.edges().size())
+                if (num_of_threads * PARTITION_PER_THREAD > g2.edges().size())
                 {
                     num_of_threads = 1;
                 }
