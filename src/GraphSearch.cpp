@@ -2778,7 +2778,7 @@ map<pair<int, int>, vector<int>> GraphSearch::analyze_exatra_edges(vector<int>& 
     map<pair<int, int>, vector<int>> hash;
     vector<int> extra_edges; // extra edges in h that are not in the spanning tree
     int sp_idx = 0;
-    int h_idx = 0;    
+    int h_idx = 0;
     while(h_idx < _h->numEdges())
     {
         if (sp_idx < flattened_spanning_tree.size() && flattened_spanning_tree[sp_idx] == h_idx)
@@ -3099,9 +3099,8 @@ vector<Edge> GraphSearch::sampleSpanningTree(
 
 bool GraphSearch::checkSpanningTree(vector<Edge> &sampled_edges, vector<int> &flattened_spanning_tree)
 {
-    // Tables for mapping nodes and edges between the two graphs
-    _h2gNodes.clear();
-    _h2gNodes.resize(_h->numNodes(), -1);
+    // Tables for mapping nodes between the two graphs
+    unordered_map<int, int> g2hNodes;
     int prevEdgeId;
     for(int i = 0; i < flattened_spanning_tree.size(); i++)
     {
@@ -3119,32 +3118,172 @@ bool GraphSearch::checkSpanningTree(vector<Edge> &sampled_edges, vector<int> &fl
         {
             return false;
         }
-        if (_h2gNodes[h_e.source()] == -1 && _h2gNodes[h_e.dest()] == -1)
-        {
-            _h2gNodes[h_e.source()] = g_e.source();
-            _h2gNodes[h_e.dest()] = g_e.dest();
-        }
-        // else if same node in h is mapped to different nodes in g, invalid
-        else if (_h2gNodes[h_e.source()] != -1 && _h2gNodes[h_e.source()] != g_e.source())
+        // else if different nodes in h is mapped to same node in g, invalid
+        if(g2hNodes.find(g_e.source()) != g2hNodes.end() && g2hNodes[g_e.source()] != h_e.source())
             return false;
-        else if (_h2gNodes[h_e.dest()] != -1 && _h2gNodes[h_e.dest()] != g_e.dest())
+        if(g2hNodes.find(g_e.dest()) != g2hNodes.end() && g2hNodes[g_e.dest()] != h_e.dest())
             return false;
+        if (g2hNodes.find(g_e.source()) == g2hNodes.end())
+            g2hNodes[g_e.source()] = h_e.source();
+        if (g2hNodes.find(g_e.dest()) == g2hNodes.end())
+            g2hNodes[g_e.dest()] = h_e.dest();
         prevEdgeId = g_e.index();
     }
     return true;
 }
 
 
-vector<long long int> GraphSearch::sampleAndCheckMotifSpanningTree(
+long long int GraphSearch::deriveMotifCounts(
+    vector<Edge>& sampled_edges, map<pair<int, int>, vector<int>>& sp_tree_range_edges
+)
+{
+    long long int motif_cnt = 1;
+    // for each extra edge, count the number of motif instances
+    for(auto &[k, vs]: sp_tree_range_edges)
+    {
+        int left_spanning_tree_edge_id = k.first;
+        int right_spanning_tree_edge_id = k.second;
+        // every edge in extra_edges have the same upper and lower bound with respect to spanning tree edges,
+        // they are sorted by index
+        vector<int>& extra_edges = vs;
+        vector<vector<int>::const_iterator> search_edges_left_its;
+        vector<vector<int>::const_iterator> search_edges_right_its;
+        for(int h_extra_edge_id: extra_edges)
+        {
+            Edge h_extra_edge = _h->edges()[h_extra_edge_id];
+            int h_extra_edge_src = h_extra_edge.source();
+            int h_extra_edge_dst = h_extra_edge.dest();
+            int g_extra_edge_src = _h2gNodes[h_extra_edge_src];
+            int g_extra_edge_dst = _h2gNodes[h_extra_edge_dst];
+
+            bool edge_exist = false;
+            const vector<int>* search_edges_ptr;
+            // the range of edges in graph g that may map to the extra edge in motif h
+            if(_g->nodeEdges().find(g_extra_edge_src) != _g->nodeEdges().end())
+            {
+                if(_g->nodeEdges()[g_extra_edge_src].find(g_extra_edge_dst) != _g->nodeEdges()[g_extra_edge_src].end())
+                {
+                    edge_exist = true;
+                    search_edges_ptr = &(_g->nodeEdges()[g_extra_edge_src][g_extra_edge_dst]);
+                }
+            }
+            if (!edge_exist) // search edges is empty, no motif instance
+                return 0;
+            
+            const vector<int>& search_edges = *search_edges_ptr;
+            vector<int>::const_iterator search_edges_left_it;
+            vector<int>::const_iterator search_edges_right_it;
+            if (left_spanning_tree_edge_id == -1)
+                // this edge is the smallest edge regarding to the spanning tree,
+                // constraints by the upper bound time - delta
+                // search_edges.time >= upper_time - delta
+                search_edges_left_it = lower_bound(
+                    search_edges.begin(), search_edges.end(), _upper_time - _delta,
+                    [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+                );
+            else
+                // search_edges.index > sampled_edges[left_spanning_tree_edge_id].index()
+                search_edges_left_it = upper_bound(
+                    search_edges.begin(), search_edges.end(), sampled_edges[left_spanning_tree_edge_id].index()
+                );
+            if (right_spanning_tree_edge_id == -1)
+                // this edge is the largest edge regarding to the spanning tree,
+                // constraints by the first edge time + delta
+                // search_edges.time <= _firstEdgeTime + delta
+                search_edges_right_it = upper_bound(
+                    search_edges.begin(), search_edges.end(), _firstEdgeTime + _delta,
+                    [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
+                );
+            else
+                // search_edges.index < sampled_edges[right_spanning_tree_edge_id].index()
+                search_edges_right_it = lower_bound(
+                    search_edges.begin(), search_edges.end(), sampled_edges[right_spanning_tree_edge_id].index()
+                );
+
+            search_edges_left_its.push_back(search_edges_left_it);
+            search_edges_right_its.push_back(search_edges_right_it);
+        }
+        
+        long long int cur_range_cnts = 0;
+        if (extra_edges.size() == 1)
+        {
+            // distance of two binary searches to count the number of motif instances
+            cur_range_cnts = distance(search_edges_left_its[0], search_edges_right_its[0]);
+        }
+        else
+        {
+            // two-pointer technique to count the number of motif instances
+            // move iteration from left to right to maintain the relative temporal ordering of extra edges
+            vector<vector<int>::const_iterator> search_edges_its(search_edges_left_its.size());
+            for(int i = 0; i < search_edges_left_its.size(); i++)
+            {
+                // iterate from left to right
+                search_edges_its[i] = search_edges_left_its[i];
+            }
+            if (extra_edges.size() == 2)
+            {
+                while(
+                    (search_edges_its[0] != search_edges_right_its[0]) &&
+                    (search_edges_its[1] != search_edges_right_its[1])
+                )
+                {
+                    // keep moving search_edges_its[1] to right until it > search_edges_its[0]
+                    if (*search_edges_its[1] <= *search_edges_its[0])
+                    {
+                        search_edges_its[1]++;
+                    }
+                    else
+                    {
+                        // all other extra edges must > previous edge index
+                        cur_range_cnts += distance(search_edges_its[1], search_edges_right_its[1]);
+                        // update search_edges_its[0]
+                        search_edges_its[0]++;
+                    }
+                }
+            }
+            else if (extra_edges.size() == 3)
+            {
+                // use 3-pointer technique to count the number of motif instances
+                // anchor on the second extra edge
+                for(; search_edges_its[1] != search_edges_right_its[1]; search_edges_its[1]++)
+                {
+                    // keep moving search_edges_its[0] to right until it >= search_edges_its[1]
+                    while(search_edges_its[0] != search_edges_right_its[0] && *search_edges_its[0] < *search_edges_its[1])
+                    {
+                        search_edges_its[0]++;
+                    }
+                    // keep moving search_edges_its[2] to right until it > search_edges_its[1]
+                    while(search_edges_its[2] != search_edges_right_its[2] && *search_edges_its[2] <= *search_edges_its[1])
+                    {
+                        search_edges_its[2]++;
+                    }
+                    int num_edegs_0 = distance(search_edges_left_its[0], search_edges_its[0]);
+                    int num_edges_2 = distance(search_edges_its[2], search_edges_right_its[2]);
+                    cur_range_cnts += num_edegs_0 * num_edges_2;
+                }
+            }
+            else
+            {
+                cout << "Do not support > 3 extra edges that has the same range respect to spannin tree in motif" << endl;
+            }
+        }
+        motif_cnt *= cur_range_cnts;
+        if (motif_cnt == 0) // early terminate if no motif instance
+            return 0;
+    }
+    return motif_cnt;
+}
+
+long long int GraphSearch::sampleAndCheckMotifSpanningTree(
     long long int max_trial, vector<vector<long long int>>& e_sampling_weights,
     vector<vector<int>> &spanning_tree, vector<int> &flattened_spanning_tree,
-    vector<Dependency> &dep_edges
+    vector<Dependency> &dep_edges, map<pair<int, int>, vector<int>> sp_tree_range_edges
 )
 {
     random_device rd;
     mt19937 eng(rd() ^ omp_get_thread_num());
 
-    vector<long long int> motifs_cnts(3, 0);
+    long long int motifs_cnt = 0;
     int spanning_tree_num_edges = _h->numNodes() - 1;
     int e_center_idx = spanning_tree[spanning_tree.size() - 1][0];
     discrete_distribution<> e_center_weight_distr(
@@ -3162,12 +3301,12 @@ vector<long long int> GraphSearch::sampleAndCheckMotifSpanningTree(
         // cout << endl;
         bool is_valid = checkSpanningTree(sampled_edges, flattened_spanning_tree);
         // cout << "is_valid: " << is_valid << endl;
-        // if (is_valid)
-        // {
-        //     long long int motif_cnt = deriveMotifCounts(sampled_edges);
-        // }
+        if (is_valid)
+        {
+            motifs_cnt += deriveMotifCounts(sampled_edges, sp_tree_range_edges);
+        }
     }
-    return {0};
+    return motifs_cnt;
 }
 
 vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
@@ -3216,16 +3355,16 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
     // the edges in the vector<int> have the index range of (SPtree edge_id 1, SPtree edge_id 2)
     // edges with same range are counted by n-pointer technique (linear time complexity)
     map<pair<int, int>, vector<int>> sp_tree_range_edges = analyze_exatra_edges(flattened_spanning_tree); 
-    // cout << "sp_tree_range_edges: " << endl;
-    // for(auto &[k, vs]: sp_tree_range_edges)
-    // {
-    //     cout << "[ " << k.first << "," << k.second << " ] : ";
-    //     for(auto v: vs)
-    //     {
-    //         cout << v << ", ";
-    //     }
-    //     cout << endl;
-    // }
+    cout << "sp_tree_range_edges: " << endl;
+    for(auto &[k, vs]: sp_tree_range_edges)
+    {
+        cout << "[ " << k.first << "," << k.second << " ] : ";
+        for(auto v: vs)
+        {
+            cout << v << ", ";
+        }
+        cout << endl;
+    }
 
     vector<vector<long long int>> e_sampling_weights(m_spanning_tree);
     long long int W = preprocess(spanning_tree, dep_edges, e_sampling_weights);
@@ -3239,9 +3378,13 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
     //     }
     //     cout << endl;
     // }
-    vector<long long int> motifs_cnts(3, 0);
-    motifs_cnts = sampleAndCheckMotifSpanningTree(
-        max_trial, e_sampling_weights, spanning_tree, flattened_spanning_tree, dep_edges);
+    long long int motif_cnt;
+    motif_cnt = sampleAndCheckMotifSpanningTree(
+        max_trial, e_sampling_weights, spanning_tree, flattened_spanning_tree, dep_edges, sp_tree_range_edges);
+    // cout << "motif_cnt: " << motif_cnt << endl;
 
-    return {0};
+    float_t W_div_k = (float_t) W / max_trial;
+    float estimated_cnt = (float) motif_cnt  * W_div_k;
+
+    return {estimated_cnt};
 }
