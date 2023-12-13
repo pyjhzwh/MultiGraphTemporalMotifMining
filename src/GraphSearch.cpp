@@ -3098,11 +3098,10 @@ vector<Edge> GraphSearch::sampleSpanningTree(
 }
 
 
-bool GraphSearch::checkSpanningTree(vector<Edge> &sampled_edges, vector<int> &flattened_spanning_tree)
+bool GraphSearch::checkSpanningTree(
+    vector<Edge> &sampled_edges, vector<int> &flattened_spanning_tree, vector<int> &h2gNodes)
 {
     // Tables for mapping nodes between the two graphs
-    _h2gNodes.clear();
-    _h2gNodes.resize(_h->numNodes(), -1);
     unordered_map<int, int> g2hNodes;
     int prevEdgeId;
     for(int i = 0; i < flattened_spanning_tree.size(); i++)
@@ -3131,14 +3130,14 @@ bool GraphSearch::checkSpanningTree(vector<Edge> &sampled_edges, vector<int> &fl
         if (g2hNodes.find(g_e.dest()) == g2hNodes.end())
             g2hNodes[g_e.dest()] = h_e.dest();
         // if different nodes in g is mapped to same node in h, invalid
-        if (_h2gNodes[h_e.source()] != -1 && _h2gNodes[h_e.source()] != g_e.source())
+        if (h2gNodes[h_e.source()] != -1 && h2gNodes[h_e.source()] != g_e.source())
             return false;
-        if (_h2gNodes[h_e.dest()] != -1 && _h2gNodes[h_e.dest()] != g_e.dest())
+        if (h2gNodes[h_e.dest()] != -1 && h2gNodes[h_e.dest()] != g_e.dest())
             return false;
-        if (_h2gNodes[h_e.source()] == -1)
-            _h2gNodes[h_e.source()] = g_e.source();
-        if (_h2gNodes[h_e.dest()] == -1)
-            _h2gNodes[h_e.dest()] = g_e.dest();
+        if (h2gNodes[h_e.source()] == -1)
+            h2gNodes[h_e.source()] = g_e.source();
+        if (h2gNodes[h_e.dest()] == -1)
+            h2gNodes[h_e.dest()] = g_e.dest();
         prevEdgeId = g_e.index();
     }
     return true;
@@ -3146,7 +3145,8 @@ bool GraphSearch::checkSpanningTree(vector<Edge> &sampled_edges, vector<int> &fl
 
 
 long long int GraphSearch::deriveMotifCounts(
-    vector<Edge>& sampled_edges, map<pair<int, int>, vector<int>>& sp_tree_range_edges
+    vector<Edge>& sampled_edges, map<pair<int, int>, vector<int>>& sp_tree_range_edges,
+    vector<int> &h2gNodes
 )
 {
     long long int motif_cnt = 1;
@@ -3165,8 +3165,8 @@ long long int GraphSearch::deriveMotifCounts(
             Edge h_extra_edge = _h->edges()[h_extra_edge_id];
             int h_extra_edge_src = h_extra_edge.source();
             int h_extra_edge_dst = h_extra_edge.dest();
-            int g_extra_edge_src = _h2gNodes[h_extra_edge_src];
-            int g_extra_edge_dst = _h2gNodes[h_extra_edge_dst];
+            int g_extra_edge_src = h2gNodes[h_extra_edge_src];
+            int g_extra_edge_dst = h2gNodes[h_extra_edge_dst];
 
             bool edge_exist = false;
             const vector<int>* search_edges_ptr;
@@ -3301,6 +3301,8 @@ long long int GraphSearch::sampleAndCheckMotifSpanningTree(
     discrete_distribution<> e_center_weight_distr(
         e_sampling_weights[e_center_idx].begin(), e_sampling_weights[e_center_idx].end());
 
+    // local variables for each thread, should not use global _h2gNodes
+    vector<int> h2gNodes(_h->numNodes(), -1); // map from node_id in h to node_id in g
 
     for(long long int trial = 0; trial < max_trial; trial++)
     {
@@ -3311,11 +3313,11 @@ long long int GraphSearch::sampleAndCheckMotifSpanningTree(
         //     cout << sampled_edges[i].index() << ", ";
         // }
         // cout << endl;
-        bool is_valid = checkSpanningTree(sampled_edges, flattened_spanning_tree);
+        bool is_valid = checkSpanningTree(sampled_edges, flattened_spanning_tree, h2gNodes);
         // cout << "is_valid: " << is_valid << endl;
         if (is_valid)
         {
-            motifs_cnt += deriveMotifCounts(sampled_edges, sp_tree_range_edges);
+            motifs_cnt += deriveMotifCounts(sampled_edges, sp_tree_range_edges, h2gNodes);
         }
     }
     return motifs_cnt;
@@ -3386,18 +3388,42 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
     cout << "preprocess time: " << t.Seconds() << endl;
 
     cout << "W: " << W << endl;
-    // for(int i = 0; i < e_sampling_weights.size(); i++)
-    // {
-    //     cout << "e_sampling_weights[" << i << "]: ";
-    //     for(int j = 0; j < e_sampling_weights[i].size(); j++)
-    //     {
-    //         cout << e_sampling_weights[i][j] << ", ";
-    //     }
-    //     cout << endl;
-    // }
+
     long long int motif_cnt;
-    motif_cnt = sampleAndCheckMotifSpanningTree(
-        max_trial, e_sampling_weights, spanning_tree, flattened_spanning_tree, dep_edges, sp_tree_range_edges);
+    t.Start();
+    if (num_of_threads > 1)
+    {
+        // prepare omp
+        // trial number for each thread and partition
+        long long int single_trial_num = (max_trial + num_of_threads * partition_per_thread - 1) / (num_of_threads * partition_per_thread);
+        // the last trial may has less trial_num than others
+        long long int last_trial_num = max_trial - single_trial_num * (num_of_threads * partition_per_thread - 1);
+        vector<long long int> trial_motif_cnts(num_of_threads * partition_per_thread);
+        // trial_motifs_cnts[i][j] , i the parition i, j is the jth motif count
+
+        #pragma omp parallel for schedule(dynamic, 1)
+        for (int i = 0; i < num_of_threads * partition_per_thread; i++)
+        {
+            int trial_num = single_trial_num;
+            if (i == num_of_threads * partition_per_thread - 1)
+                trial_num = last_trial_num;
+            trial_motif_cnts[i] = sampleAndCheckMotifSpanningTree(
+                trial_num, e_sampling_weights, spanning_tree, flattened_spanning_tree, dep_edges, sp_tree_range_edges);
+        }
+        # pragma omp parallel for reduction(+:motif_cnt)
+        for(int i = 0; i < num_of_threads * partition_per_thread; i++)
+        {
+            motif_cnt += trial_motif_cnts[i];
+        }
+
+    }
+    else
+    {
+        motif_cnt = sampleAndCheckMotifSpanningTree(
+            max_trial, e_sampling_weights, spanning_tree, flattened_spanning_tree, dep_edges, sp_tree_range_edges);
+    }
+    t.end();
+    cout << "sample time: " << t.Seconds() << endl;
     // cout << "motif_cnt: " << motif_cnt << endl;
 
     float_t W_div_k = (float_t) W / max_trial;

@@ -330,12 +330,15 @@ public:
         );
 
     bool checkSpanningTree(
-        std::vector<Edge> &sampled_edges,
-        std::vector<int> &flattened_spanning_tree
+        std::vector<Edge>& sampled_edges,
+        std::vector<int>& flattened_spanning_tree,
+        std::vector<int>& h2gNodes
         );
 
     long long int deriveMotifCounts(
-        std::vector<Edge>& sampled_edges, std::map<std::pair<int, int>, std::vector<int>>& sp_tree_range_edges
+        std::vector<Edge>& sampled_edges,
+        std::map<std::pair<int, int>, std::vector<int>>& sp_tree_range_edges,
+        std::vector<int>& h2gNodes
     );
 
     long long int sampleAndCheckMotifSpanningTree(

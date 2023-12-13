@@ -185,9 +185,7 @@ int main(int argc, char **argv)
                     g2, h, num_of_threads, PARTITION_PER_THREAD, delta, max_trial, spanning_tree);
                 t.Stop();
                 avg_time += t.Seconds();
-                for (int i = 0; i < results.size(); i++)
-                    cout << "M" << i << ": " << results[i] << ", ";
-                cout << endl;
+                cout << "count for " << queryFname << " : " << results[0] << endl;
                 std::cout << "total time searchPB.findOrderedSubgraphs (s) is: " << avg_time << " s." << std::endl;
             }
         }
