@@ -3102,6 +3102,7 @@ bool GraphSearch::checkSpanningTree(
     vector<Edge> &sampled_edges, vector<int> &flattened_spanning_tree, vector<int> &h2gNodes)
 {
     h2gNodes.clear();
+    time_t upper_time;
     // Tables for mapping nodes between the two graphs
     unordered_map<int, int> g2hNodes;
     int prevEdgeId;
@@ -3112,12 +3113,10 @@ bool GraphSearch::checkSpanningTree(
         Edge h_e = _h->edges()[m_edge_id]; // e in motif h
         if (i == 0)
         {
-            _firstEdgeTime = g_e.time();
-            _firstEdgeid = g_e.index();
-            _upper_time = _firstEdgeTime + _delta;
+            upper_time = g_e.time() + _delta;
         }
         // time ordering and delta constraint not satisfied
-        else if(g_e.index() <= prevEdgeId || g_e.time() > _upper_time)
+        else if(g_e.index() <= prevEdgeId || g_e.time() > upper_time)
         {
             return false;
         }
