@@ -320,13 +320,14 @@ public:
         std::vector<std::vector<int>> &spanning_tree, std::vector<Dependency> &dep_edges,
         std::vector<std::vector<long long int>>& e_sampling_weights);
 
-    std::vector<Edge> sampleSpanningTree(
+    void sampleSpanningTree(
         int iter,
         std::mt19937 &eng,
         std::discrete_distribution<> &e_center_weight_distr,
         std::vector<std::vector<long long int>>& e_sampling_weights,
         std::vector<std::vector<int>> &spanning_tree,
-        std::vector<Dependency> &dep_edges
+        std::vector<Dependency> &dep_edges,
+        std::vector<Edge> &sampled_edges
         );
 
     bool checkSpanningTree(
@@ -337,6 +338,7 @@ public:
 
     long long int deriveMotifCounts(
         std::vector<Edge>& sampled_edges,
+        std::vector<int>& flattened_spanning_tree,
         std::map<std::pair<int, int>, std::vector<int>>& sp_tree_range_edges,
         std::vector<int>& h2gNodes
     );

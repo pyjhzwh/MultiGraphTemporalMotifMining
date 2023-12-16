@@ -2710,7 +2710,7 @@ vector<float> GraphSearch::sixNodePathSample(const Graph &g, int spanning_tree_n
 vector<Dependency> GraphSearch::analyze_spanning_tree(vector<vector<int>>& spanning_tree)
 {
     // for edges in motif that are not in the spanning tree, just use empty Depdency
-    vector<Dependency> dep_edges(_h->numEdges(), Dependency(-1));
+    vector<Dependency> dep_edges;
     // map from node_id to vector of edges in spanning tree that connect to the node
     unordered_map<int, vector<int>> node2edges;
     // if this edge has been used as dependent edge before
@@ -2721,12 +2721,16 @@ vector<Dependency> GraphSearch::analyze_spanning_tree(vector<vector<int>>& spann
     // case 2: e1 depends on e0; e2 depends on e1, e3, e4
     // case 2 has better sampling weights because if enforce more constraints (e1 and e4)
     unordered_set<int> visited;
+    for(int i = 0; i < _h->numEdges(); i++)
+    {
+        dep_edges.push_back(Dependency(i));
+    }
     for(int j = 0; j < spanning_tree[0].size(); j++)
     {
         int m_edge_id = spanning_tree[0][j];
         int src = _h->edges()[m_edge_id].source();
         int dst = _h->edges()[m_edge_id].dest();
-        dep_edges[m_edge_id] = Dependency(m_edge_id);
+        // dep_edges[m_edge_id] = Dependency(m_edge_id);
         node2edges[src].push_back(m_edge_id);
         node2edges[dst].push_back(m_edge_id);
     }
@@ -2737,7 +2741,7 @@ vector<Dependency> GraphSearch::analyze_spanning_tree(vector<vector<int>>& spann
             int m_edge_id = spanning_tree[i][j];
             int src = _h->edges()[m_edge_id].source();
             int dst = _h->edges()[m_edge_id].dest();
-            Dependency dep(m_edge_id);
+            Dependency& dep = dep_edges[m_edge_id];
             for(int src_dst = 0; src_dst < 2; src_dst++)
             {
                 int connected_node;
@@ -2765,7 +2769,6 @@ vector<Dependency> GraphSearch::analyze_spanning_tree(vector<vector<int>>& spann
                 }
             }
             
-            dep_edges[m_edge_id] = dep;
             node2edges[src].push_back(m_edge_id);
             node2edges[dst].push_back(m_edge_id);
         }
@@ -2824,6 +2827,7 @@ long long int GraphSearch::preprocess(
     vector<vector<long long int>>& e_sampling_weights)
 {
     long long int W = 0;
+    e_sampling_weights.clear();
     for(int s = 1; s < spanning_tree.size(); s++)
     {
         // motif edges in s'th level of spanning_tree
@@ -2913,7 +2917,7 @@ long long int GraphSearch::preprocess(
                             );
                         }
                         long long int tmp_src_dst_weight = 0;
-                        if (e_sampling_weights[dep_edge_id].size() == 0) // the dependent edge is the leaf edge
+                        if (dep_edges[dep_edge_id].num_dep_edge == 0) // the dependent edge is the leaf edge
                         {
                             int num_edges = distance(search_edges_left_it, search_edges_right_it);
                             tmp_src_dst_weight = (long long int) num_edges;
@@ -2962,18 +2966,18 @@ long long int GraphSearch::preprocess(
 }
 
 
-vector<Edge> GraphSearch::sampleSpanningTree(
+void GraphSearch::sampleSpanningTree(
     int iter,
     mt19937 &eng,
     discrete_distribution<> &e_center_weight_distr,
     vector<vector<long long int>>& e_sampling_weights,
     vector<vector<int>> &spanning_tree,
-    vector<Dependency> &dep_edges
+    vector<Dependency> &dep_edges,
+    vector<Edge> &sampled_edges
 )
 {
     unsigned int seed = time(NULL) ^ omp_get_thread_num() ^ static_cast<unsigned int>(iter);
     int spanning_tree_num_edges = _h->numNodes() - 1;
-    vector<Edge> sampled_edges(spanning_tree_num_edges, Edge(-1, -1, -1, -1));
     vector<bool> visited(spanning_tree_num_edges, false);
 
     // sample ordering is the reverse order of preprocessing (the spanning tree ordering)
@@ -2992,7 +2996,7 @@ vector<Edge> GraphSearch::sampleSpanningTree(
         {
             int m_edge_id = m_edges_in_level[j];
             // dependency of m_edge_id in motif
-            Dependency dep = dep_edges[m_edge_id];
+            Dependency& dep = dep_edges[m_edge_id];
             // the sampled edge in graph that serve as the m_edge_id's role in motif
             Edge sampled_edge = sampled_edges[m_edge_id];
             for(int src_dst = 0; src_dst < 2; src_dst++)
@@ -3060,7 +3064,7 @@ vector<Edge> GraphSearch::sampleSpanningTree(
                     int num_edges = distance(search_edges_left_it, search_edges_right_it);
                     if (num_edges == 0)
                         continue;
-                    if (e_sampling_weights[m_dep_edge_id].size() == 0)
+                    if (dep_edges[m_dep_edge_id].num_dep_edge == 0)
                     {
                         // uniform sampling the first level edges
                         vector<int> search_edges_in_range(search_edges_left_it, search_edges_right_it);
@@ -3094,7 +3098,7 @@ vector<Edge> GraphSearch::sampleSpanningTree(
             }
         }
     }
-    return sampled_edges;
+    return;
 }
 
 
@@ -3145,11 +3149,15 @@ bool GraphSearch::checkSpanningTree(
 
 
 long long int GraphSearch::deriveMotifCounts(
-    vector<Edge>& sampled_edges, map<pair<int, int>, vector<int>>& sp_tree_range_edges,
+    vector<Edge>& sampled_edges,
+    vector<int>& flattened_spanning_tree,
+    map<pair<int, int>, vector<int>>& sp_tree_range_edges,
     vector<int> &h2gNodes
 )
 {
     long long int motif_cnt = 1;
+    time_t firstEdgeTime = sampled_edges[flattened_spanning_tree[0]].time();
+    time_t upperTime = sampled_edges[flattened_spanning_tree[flattened_spanning_tree.size() - 1]].time();
     // for each extra edge, count the number of motif instances
     for(auto &[k, vs]: sp_tree_range_edges)
     {
@@ -3190,7 +3198,7 @@ long long int GraphSearch::deriveMotifCounts(
                 // constraints by the upper bound time - delta
                 // search_edges.time >= upper_time - delta
                 search_edges_left_it = lower_bound(
-                    search_edges.begin(), search_edges.end(), _upper_time - _delta,
+                    search_edges.begin(), search_edges.end(), upperTime - _delta,
                     [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
                 );
             else
@@ -3201,9 +3209,9 @@ long long int GraphSearch::deriveMotifCounts(
             if (right_spanning_tree_edge_id == -1)
                 // this edge is the largest edge regarding to the spanning tree,
                 // constraints by the first edge time + delta
-                // search_edges.time <= _firstEdgeTime + delta
+                // search_edges.time <= firstEdgeTime + delta
                 search_edges_right_it = upper_bound(
-                    search_edges.begin(), search_edges.end(), _firstEdgeTime + _delta,
+                    search_edges.begin(), search_edges.end(), firstEdgeTime + _delta,
                     [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
                 );
             else
@@ -3304,8 +3312,9 @@ long long int GraphSearch::sampleAndCheckMotifSpanningTree(
     for(long long int trial = 0; trial < max_trial; trial++)
     {
         vector<int> h2gNodes(_h->numNodes(), -1); // map from node_id in h to node_id in g
-        vector<Edge> sampled_edges = sampleSpanningTree(
-            trial, eng, e_center_weight_distr, e_sampling_weights, spanning_tree, dep_edges);
+        vector<Edge> sampled_edges(_h->numEdges(), Edge(-1, -1, -1, -1));
+        sampleSpanningTree(
+            trial, eng, e_center_weight_distr, e_sampling_weights, spanning_tree, dep_edges, sampled_edges);
         // for(int i = 0; i < sampled_edges.size(); i++)
         // {
         //     cout << sampled_edges[i].index() << ", ";
@@ -3315,7 +3324,7 @@ long long int GraphSearch::sampleAndCheckMotifSpanningTree(
         // cout << "is_valid: " << is_valid << endl;
         if (is_valid)
         {
-            motifs_cnt += deriveMotifCounts(sampled_edges, sp_tree_range_edges, h2gNodes);
+            motifs_cnt += deriveMotifCounts(sampled_edges, flattened_spanning_tree, sp_tree_range_edges, h2gNodes);
         }
     }
     return motifs_cnt;
@@ -3387,7 +3396,7 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
 
     cout << "W: " << W << endl;
 
-    long long int motif_cnt;
+    long long int motif_cnt = 0;
     t.Start();
     if (num_of_threads > 1)
     {
@@ -3411,7 +3420,6 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
         // # pragma omp parallel for reduction(+:motif_cnt)
         for(int i = 0; i < num_of_threads * partition_per_thread; i++)
         {
-            // cout << "trial_motif_cnts[" << i << "]: " << trial_motif_cnts[i] << endl;
             motif_cnt += trial_motif_cnts[i];
         }
 
