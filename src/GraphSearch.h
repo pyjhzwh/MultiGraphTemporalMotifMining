@@ -418,7 +418,7 @@ private:
     // choose num_random of the list between begin and end
     template<class BidiIter > BidiIter random_unique(BidiIter begin, BidiIter end, size_t num_random, unsigned int seed);
 
-    std::vector<int> random_select_n(std::vector<int>& list, size_t num_random, unsigned int seed);
+    std::vector<int> random_select_n(std::vector<int>& list, size_t num_random, std::mt19937& eng);
 
     // Private data members
     const Graph *_g, *_h;

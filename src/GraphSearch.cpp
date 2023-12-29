@@ -44,11 +44,14 @@ BidiIter GraphSearch::random_unique(BidiIter begin, BidiIter end, size_t num_ran
     return begin;
 }
 
-vector<int> GraphSearch::random_select_n(vector<int>& list, size_t num_random, unsigned int seed) {
+vector<int> GraphSearch::random_select_n(vector<int>& list, size_t num_random, mt19937& gen) {
     vector<int> result;
 
+    uniform_int_distribution<> dis(0, list.size()-1);
     while(num_random--) {
-        int r = rand_r(&seed) % list.size();
+        // https://stackoverflow.com/questions/2129705/why-is-rand-anything-always-0-in-c
+        // int rand_num = rand_r(&seed);
+        int r = dis(gen);
         result.push_back(list[r]);
         list.erase(list.begin() + r);
     }
@@ -2874,7 +2877,7 @@ long long int GraphSearch::preprocess(
                         for (int l = 0; l < dep.dep_edges[src_dst][k].size(); l++)
                         {
                             int dep_edge_id = dep.dep_edges[src_dst][k][l].index();
-                            if (dep_edge_id > i)
+                            if (dep_edge_id > m_edge_id)
                                 break;
                             less_than_cur_edge_num++;
                         }
@@ -3006,6 +3009,7 @@ void GraphSearch::sampleSpanningTree(
     // sample center edge first using e_sampling_weights
     int e_center_idx_in_h = spanning_tree[spanning_tree.size() - 1][0];
     int e_center_idx_in_g = e_center_weight_distr(eng);
+    // e_center_idx_in_g = 10444; // for debug, e_center is e1
     Edge e_center = _g->edges()[e_center_idx_in_g];
     sampled_edges[e_center_idx_in_h] = e_center;
     visited[e_center_idx_in_h] = true;
@@ -3111,12 +3115,15 @@ void GraphSearch::sampleSpanningTree(
                         {
                             // uniform sampling the first level edges
                             vector<int> search_edges_in_range(search_edges_left_it, search_edges_right_it);
-                            random_unique(search_edges_in_range.begin(), search_edges_in_range.end(), select_n, seed);
-                            sort(search_edges_in_range.begin(), search_edges_in_range.begin() + select_n);
+                            // random_unique(search_edges_in_range.begin(), search_edges_in_range.end(), select_n, seed);
+                            // sort(search_edges_in_range.begin(), search_edges_in_range.begin() + select_n);
+                            vector<int> selected = random_select_n(search_edges_in_range, select_n, eng);
+                            sort(selected.begin(), selected.end());
                             for(int i = 0; i < select_n; i++)
                             {
                                 int m_dep_edge_id_ith = dep.dep_edges[src_dst][k][i+anchor_idx].index();
-                                int g_dep_edge_id = search_edges_in_range[i];
+                                // int g_dep_edge_id = search_edges_in_range[i];
+                                int g_dep_edge_id = selected[i];
                                 Edge g_dep_edge = _g->edges()[g_dep_edge_id];
                                 sampled_edges[m_dep_edge_id_ith] = g_dep_edge;
                                 visited[m_dep_edge_id_ith] = true;
@@ -3529,11 +3536,6 @@ long long int GraphSearch::sampleAndCheckMotifSpanningTree(
         vector<Edge> sampled_edges(_h->numEdges(), Edge(-1, -1, -1, -1));
         sampleSpanningTree(
             trial, eng, e_center_weight_distr, e_sampling_weights, spanning_tree, dep_edges, sampled_edges);
-        // for(int i = 0; i < sampled_edges.size(); i++)
-        // {
-        //     cout << sampled_edges[i].index() << ", ";
-        // }
-        // cout << endl;
         bool is_valid = checkSpanningTree(sampled_edges, flattened_spanning_tree, h2gNodes);
         // cout << "is_valid: " << is_valid << endl;
         if (is_valid)

@@ -161,19 +161,19 @@ int main(int argc, char **argv)
                 MatchCriteria_DataGraph criteria;
                 if (args.verbose())
                     cout << "Filtering data graph to improve query performance." << endl;
-                DataGraph g2;
-                g2.setNodeAttributesDef(g.nodeAttributesDef());
-                g2.setEdgeAttributesDef(g.edgeAttributesDef());
-                GraphFilter::filter(g, h, criteria, g2);
+                // DataGraph g2;
+                // g2.setNodeAttributesDef(g.nodeAttributesDef());
+                // g2.setEdgeAttributesDef(g.edgeAttributesDef());
+                // GraphFilter::filter(g, h, criteria, g2);
                 GraphSearch search;
                 int num_of_threads = args.num_of_threads;
-                if (num_of_threads * PARTITION_PER_THREAD > g2.edges().size())
+                if (num_of_threads * PARTITION_PER_THREAD > g.edges().size())
                 {
                     num_of_threads = 1;
                 }
                 cout << "Running in " << num_of_threads << " threads" << endl;
                 omp_set_num_threads(num_of_threads);
-                vector<vector<int>> spanning_tree = {{0,2}, {1}};
+                vector<vector<int>> spanning_tree = {{0, 3, 5}, {1}};
                 cout << "========== Spanning tree sampling ==========" << endl;
                 const long long int max_trial = args.max_trial();
                 cout << "max_trial: " << max_trial << endl;
@@ -182,7 +182,7 @@ int main(int argc, char **argv)
                 double avg_time = 0;
                 t.Start();
                 results = search.SpanningTreeSample(
-                    g2, h, num_of_threads, PARTITION_PER_THREAD, delta, max_trial, spanning_tree);
+                    g, h, num_of_threads, PARTITION_PER_THREAD, delta, max_trial, spanning_tree);
                 t.Stop();
                 avg_time += t.Seconds();
                 cout << "count for " << queryFname << " : " << results[0] << endl;
