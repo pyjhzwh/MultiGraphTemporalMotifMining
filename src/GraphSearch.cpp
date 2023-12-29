@@ -2827,13 +2827,13 @@ long long int GraphSearch::preprocess(
     vector<vector<long long int>>& e_sampling_weights)
 {
     long long int W = 0;
-    e_sampling_weights.clear();
+    // e_sampling_weights.clear();
     for(int s = 1; s < spanning_tree.size(); s++)
     {
         // motif edges in s'th level of spanning_tree
         vector<int> &m_edges_in_level = spanning_tree[s];
         for (auto m_edge: m_edges_in_level)
-            e_sampling_weights[m_edge].assign(_g->numEdges(), 0); // resize the vector
+            e_sampling_weights[m_edge].resize(_g->numEdges(), 0); // resize the vector
     }
     // no need to preprocess for the first level spanning tree because they just need uniform sampling
     for(int s = 1; s < spanning_tree.size(); s++)
@@ -2868,91 +2868,113 @@ long long int GraphSearch::preprocess(
                     for (int k = 0; k < dep.dep_edges[src_dst].size(); k++) // dep_edge connect to edge_id.source()
                     {
                         // only consider the first dependency in the same orbit
+                        // in two ranges, < and > current edge
                         // use select n from m to compute the weight
-                        int select_n = dep.dep_edges[src_dst][k].size();
-                        Edge dep_edge = dep.dep_edges[src_dst][k][0];
-                        int dep_edge_id = dep_edge.index();
-                        bool dep_edge_in_out = dep.dep_edges_in_out[src_dst][k][0];
-                        bool dep_edge_ordering = dep.dep_edges_ording[src_dst][k][0];
-                        const vector<int>* search_edges_ptr;
-                        if (!dep_edge_in_out) // incoming edges
+                        int less_than_cur_edge_num = 0;
+                        for (int l = 0; l < dep.dep_edges[src_dst][k].size(); l++)
                         {
-                            search_edges_ptr = &(_g->nodes()[connected_node].inEdges());
+                            int dep_edge_id = dep.dep_edges[src_dst][k][l].index();
+                            if (dep_edge_id > i)
+                                break;
+                            less_than_cur_edge_num++;
                         }
-                        else // outgoing edges
+                        vector<int> two_range_dep_edges_num{
+                            less_than_cur_edge_num, (int) dep.dep_edges[src_dst][k].size() - less_than_cur_edge_num};
+                        for(int l = 0; l < 2; l++)
                         {
-                            search_edges_ptr = &(_g->nodes()[connected_node].outEdges());
-                        }
-                        const vector<int>& search_edges = *search_edges_ptr;
-                        vector<int>::const_iterator search_edges_left_it;
-                        vector<int>::const_iterator search_edges_right_it;
-                        if (!dep_edge_ordering)
-                        {
-                            // dep_edge_id.time < m_edge_id.time
-                            // binary search in [m_edge_id.time - _delta, m_edge_id.time]
-                            // use lower_bound
-                            // search_edges.index() < e.index()
-                            search_edges_right_it = lower_bound(
-                                search_edges.begin(), search_edges.end(), e.index()
-                            );
-                            // search_edges.time() >= e.time() - _delta
-                            search_edges_left_it = lower_bound(
-                                search_edges.begin(), search_edges.end(), e.time() - _delta,
-                                [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
-                            );
-                        }
-                        else
-                        {
-                            // dep_edge_id.time > m_edge_id.time
-                            // binary search in [m_edge_id.time, m_edge_id.time + _delta]
-                            // use upper_bound
-                            // search_edges.index() > e.index()
-                            search_edges_left_it = upper_bound(
-                                search_edges.begin(), search_edges.end(), e.index()
-                            );
-                            // search_edges.time() <= e.time() + _delta
-                            search_edges_right_it = upper_bound(
-                                search_edges.begin(), search_edges.end(), e.time() + _delta,
-                                [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
-                            );
-                        }
-                        long long int tmp_src_dst_weight = 0;
-                        if (dep_edges[dep_edge_id].num_dep_edge == 0) // the dependent edge is the leaf edge
-                        {
-                            int num_edges = distance(search_edges_left_it, search_edges_right_it);
-                            tmp_src_dst_weight = (long long int) num_edges;
-                        }
-                        else // use the dependent edge's sampling weights to compute the sampling weights of edge_id
-                        {
-                            
-                            for(vector<int>::const_iterator it = search_edges_left_it; it != search_edges_right_it; it++)
+
+                            int select_n =two_range_dep_edges_num[l];
+                            if (select_n == 0)
+                                continue; // no dependent edge in this range
+                            int anchor_idx;
+                            if (l == 0)
+                                anchor_idx = 0;
+                            else
+                                anchor_idx = less_than_cur_edge_num;
+                            Edge dep_edge = dep.dep_edges[src_dst][k][anchor_idx];
+                            int dep_edge_id = dep_edge.index();
+                            bool dep_edge_in_out = dep.dep_edges_in_out[src_dst][k][anchor_idx];
+                            bool dep_edge_ordering = dep.dep_edges_ording[src_dst][k][anchor_idx];
+                            const vector<int>* search_edges_ptr;
+                            if (!dep_edge_in_out) // incoming edges
                             {
-                                tmp_src_dst_weight += e_sampling_weights[dep_edge_id][*it];
+                                search_edges_ptr = &(_g->nodes()[connected_node].inEdges());
                             }
-                            
-                        }
-                        if (select_n > 1)
-                        {
-                            if (tmp_src_dst_weight >= select_n)
+                            else // outgoing edges
                             {
-                                // select n from m
-                                long long int dividend = 1;
-                                long long int divisor = 1;
-                                while(select_n > 0)
-                                {
-                                    dividend *= tmp_src_dst_weight;
-                                    divisor *= select_n;
-                                    tmp_src_dst_weight--;
-                                    select_n--;
-                                }
-                                tmp_src_dst_weight = dividend / divisor;
+                                search_edges_ptr = &(_g->nodes()[connected_node].outEdges());
+                            }
+                            const vector<int>& search_edges = *search_edges_ptr;
+                            vector<int>::const_iterator search_edges_left_it;
+                            vector<int>::const_iterator search_edges_right_it;
+                            if (!dep_edge_ordering)
+                            {
+                                // dep_edge_id.time < m_edge_id.time
+                                // binary search in [m_edge_id.time - _delta, m_edge_id.time]
+                                // use lower_bound
+                                // search_edges.index() < e.index()
+                                search_edges_right_it = lower_bound(
+                                    search_edges.begin(), search_edges.end(), e.index()
+                                );
+                                // search_edges.time() >= e.time() - _delta
+                                search_edges_left_it = lower_bound(
+                                    search_edges.begin(), search_edges.end(), e.time() - _delta,
+                                    [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+                                );
                             }
                             else
                             {
-                                tmp_src_dst_weight = 0;
+                                // dep_edge_id.time > m_edge_id.time
+                                // binary search in [m_edge_id.time, m_edge_id.time + _delta]
+                                // use upper_bound
+                                // search_edges.index() > e.index()
+                                search_edges_left_it = upper_bound(
+                                    search_edges.begin(), search_edges.end(), e.index()
+                                );
+                                // search_edges.time() <= e.time() + _delta
+                                search_edges_right_it = upper_bound(
+                                    search_edges.begin(), search_edges.end(), e.time() + _delta,
+                                    [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
+                                );
                             }
+                            long long int tmp_src_dst_weight = 0;
+                            if (dep_edges[dep_edge_id].num_dep_edge == 0) // the dependent edge is the leaf edge
+                            {
+                                int num_edges = distance(search_edges_left_it, search_edges_right_it);
+                                tmp_src_dst_weight = (long long int) num_edges;
+                            }
+                            else // use the dependent edge's sampling weights to compute the sampling weights of edge_id
+                            {
+                                
+                                for(vector<int>::const_iterator it = search_edges_left_it; it != search_edges_right_it; it++)
+                                {
+                                    tmp_src_dst_weight += e_sampling_weights[dep_edge_id][*it];
+                                }
+                                
+                            }
+                            if (select_n > 1)
+                            {
+                                if (tmp_src_dst_weight >= select_n)
+                                {
+                                    // select n from m
+                                    long long int dividend = 1;
+                                    long long int divisor = 1;
+                                    while(select_n > 0)
+                                    {
+                                        dividend *= tmp_src_dst_weight;
+                                        divisor *= select_n;
+                                        tmp_src_dst_weight--;
+                                        select_n--;
+                                    }
+                                    tmp_src_dst_weight = dividend / divisor;
+                                }
+                                else
+                                {
+                                    tmp_src_dst_weight = 0;
+                                }
+                            }
+                            W_src_dst[src_dst] *= tmp_src_dst_weight;
                         }
-                        W_src_dst[src_dst] *= tmp_src_dst_weight;
                     }
 
                 }
@@ -3013,86 +3035,108 @@ void GraphSearch::sampleSpanningTree(
                 for (int k = 0; k < dep.dep_edges[src_dst].size(); k++) // dep_edge connect to edge_id.source()
                 {
                     // only consider the first dependency in the same orbit
+                    // in two ranges, < and > current edge
                     // use select n from m to compute the weight
-                    int select_n = dep.dep_edges[src_dst][k].size();
-                    Edge m_dep_edge = dep.dep_edges[src_dst][k][0];
-                    int m_dep_edge_id = m_dep_edge.index();
-                    if (visited[m_dep_edge_id]) // if sampled before, then skip
-                        continue;
-                    bool m_dep_edge_in_out = dep.dep_edges_in_out[src_dst][k][0];
-                    bool m_dep_edge_ordering = dep.dep_edges_ording[src_dst][k][0];
-                    const vector<int>* search_edges_ptr;
-                    if (!m_dep_edge_in_out) // incoming edges
+                    int less_than_cur_edge_num = 0;
+                    for (int l = 0; l < dep.dep_edges[src_dst][k].size(); l++)
                     {
-                        search_edges_ptr = &(_g->nodes()[connected_node].inEdges());
+                        int dep_edge_id = dep.dep_edges[src_dst][k][l].index();
+                        if (dep_edge_id > m_edge_id)
+                            break;
+                        less_than_cur_edge_num++;
                     }
-                    else // outgoing edges
+                    vector<int> two_range_dep_edges_num{
+                        less_than_cur_edge_num, (int)dep.dep_edges[src_dst][k].size() - less_than_cur_edge_num};
+                    for(int l = 0; l < 2; l++)
                     {
-                        search_edges_ptr = &(_g->nodes()[connected_node].outEdges());
-                    }
-                    const vector<int>& search_edges = *search_edges_ptr;
-                    vector<int>::const_iterator search_edges_left_it;
-                    vector<int>::const_iterator search_edges_right_it;
-                    if (!m_dep_edge_ordering)
-                    {
-                        // binary search in [sampled_edge.time - _delta, sampled_edge.time]
-                        // use lower_bound
-                        // search_edges.index() < sampled_edge.index()
-                        search_edges_right_it = lower_bound(
-                            search_edges.begin(), search_edges.end(), sampled_edge.index()
-                        );
-                        // search_edges.time() >= sampled_edge.time() - _delta
-                        search_edges_left_it = lower_bound(
-                            search_edges.begin(), search_edges.end(), sampled_edge.time() - _delta,
-                            [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
-                        );
-                    }
-                    else
-                    {
-                        // binary search in [sampled_edge.time, sampled_edge.time + _delta]
-                        // use upper_bound
-                        // search_edges.index() > sampled_edge.index()
-                        search_edges_left_it = upper_bound(
-                            search_edges.begin(), search_edges.end(), sampled_edge.index()
-                        );
-                        // search_edges.time() <= sampled_edge.time() + _delta
-                        search_edges_right_it = upper_bound(
-                            search_edges.begin(), search_edges.end(), sampled_edge.time() + _delta,
-                            [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
-                        );
-                    }
-                    int num_edges = distance(search_edges_left_it, search_edges_right_it);
-                    if (num_edges == 0)
-                        continue;
-                    if (dep_edges[m_dep_edge_id].num_dep_edge == 0)
-                    {
-                        // uniform sampling the first level edges
-                        vector<int> search_edges_in_range(search_edges_left_it, search_edges_right_it);
-                        random_unique(search_edges_in_range.begin(), search_edges_in_range.end(), select_n, seed);
-                        sort(search_edges_in_range.begin(), search_edges_in_range.begin() + select_n);
-                        for(int i = 0; i < select_n; i++)
+
+                        int select_n =two_range_dep_edges_num[l];
+                        if (select_n == 0)
+                            continue; // no dependent edge in this range
+                        int anchor_idx;
+                        if (l == 0)
+                            anchor_idx = 0;
+                        else
+                            anchor_idx = less_than_cur_edge_num;
+                        Edge m_dep_edge = dep.dep_edges[src_dst][k][anchor_idx];
+                        int m_dep_edge_id = m_dep_edge.index();
+                        if (visited[m_dep_edge_id]) // if sampled before, then skip
+                            continue;
+                        bool m_dep_edge_in_out = dep.dep_edges_in_out[src_dst][k][anchor_idx];
+                        bool m_dep_edge_ordering = dep.dep_edges_ording[src_dst][k][anchor_idx];
+                        const vector<int>* search_edges_ptr;
+                        if (!m_dep_edge_in_out) // incoming edges
                         {
-                            int m_dep_edge_id_ith = dep.dep_edges[src_dst][k][i].index();
-                            int g_dep_edge_id = search_edges_in_range[i];
+                            search_edges_ptr = &(_g->nodes()[connected_node].inEdges());
+                        }
+                        else // outgoing edges
+                        {
+                            search_edges_ptr = &(_g->nodes()[connected_node].outEdges());
+                        }
+                        const vector<int>& search_edges = *search_edges_ptr;
+                        vector<int>::const_iterator search_edges_left_it;
+                        vector<int>::const_iterator search_edges_right_it;
+                        if (!m_dep_edge_ordering)
+                        {
+                            // binary search in [sampled_edge.time - _delta, sampled_edge.time]
+                            // use lower_bound
+                            // search_edges.index() < sampled_edge.index()
+                            search_edges_right_it = lower_bound(
+                                search_edges.begin(), search_edges.end(), sampled_edge.index()
+                            );
+                            // search_edges.time() >= sampled_edge.time() - _delta
+                            search_edges_left_it = lower_bound(
+                                search_edges.begin(), search_edges.end(), sampled_edge.time() - _delta,
+                                [&](const int &a, const time_t &b) { return _g->edges()[a].time() < b; }
+                            );
+                        }
+                        else
+                        {
+                            // binary search in [sampled_edge.time, sampled_edge.time + _delta]
+                            // use upper_bound
+                            // search_edges.index() > sampled_edge.index()
+                            search_edges_left_it = upper_bound(
+                                search_edges.begin(), search_edges.end(), sampled_edge.index()
+                            );
+                            // search_edges.time() <= sampled_edge.time() + _delta
+                            search_edges_right_it = upper_bound(
+                                search_edges.begin(), search_edges.end(), sampled_edge.time() + _delta,
+                                [&](const time_t &a, const int &b) { return a < _g->edges()[b].time(); }
+                            );
+                        }
+                        int num_edges = distance(search_edges_left_it, search_edges_right_it);
+                        if (num_edges == 0)
+                            continue;
+                        if (dep_edges[m_dep_edge_id].num_dep_edge == 0)
+                        {
+                            // uniform sampling the first level edges
+                            vector<int> search_edges_in_range(search_edges_left_it, search_edges_right_it);
+                            random_unique(search_edges_in_range.begin(), search_edges_in_range.end(), select_n, seed);
+                            sort(search_edges_in_range.begin(), search_edges_in_range.begin() + select_n);
+                            for(int i = 0; i < select_n; i++)
+                            {
+                                int m_dep_edge_id_ith = dep.dep_edges[src_dst][k][i+anchor_idx].index();
+                                int g_dep_edge_id = search_edges_in_range[i];
+                                Edge g_dep_edge = _g->edges()[g_dep_edge_id];
+                                sampled_edges[m_dep_edge_id_ith] = g_dep_edge;
+                                visited[m_dep_edge_id_ith] = true;
+                            }
+                        }
+                        else
+                        {
+                            // use the dependent edge's sampling weights to compute the sampling weights of edge_id
+                            vector<long long int> cur_e_weights(num_edges, 0);
+                            for(int i = 0; i < cur_e_weights.size(); i++)
+                            {
+                                cur_e_weights[i] = e_sampling_weights[m_dep_edge_id][*(search_edges_left_it+i)];
+                            }
+                            // select_n must be 1 (otherwise does not work ...)
+                            discrete_distribution<> cur_e_weights_distr(cur_e_weights.begin(), cur_e_weights.end());
+                            int g_dep_edge_id = *(search_edges_left_it + cur_e_weights_distr(eng));
                             Edge g_dep_edge = _g->edges()[g_dep_edge_id];
-                            sampled_edges[m_dep_edge_id_ith] = g_dep_edge;
-                            visited[m_dep_edge_id_ith] = true;
+                            sampled_edges[m_dep_edge_id] = g_dep_edge;
+                            visited[m_dep_edge_id] = true;
                         }
-                    }
-                    else
-                    {
-                        // use the dependent edge's sampling weights to compute the sampling weights of edge_id
-                        vector<long long int> cur_e_weights(num_edges, 0);
-                        for(int i = 0; i < cur_e_weights.size(); i++)
-                        {
-                            cur_e_weights[i] = e_sampling_weights[m_dep_edge_id][*(search_edges_left_it+i)];
-                        }
-                        // select_n must be 1 (otherwise does not work ...)
-                        discrete_distribution<> cur_e_weights_distr(cur_e_weights.begin(), cur_e_weights.end());
-                        int g_dep_edge_id = *(search_edges_left_it + cur_e_weights_distr(eng));
-                        Edge g_dep_edge = _g->edges()[g_dep_edge_id];
-                        sampled_edges[m_dep_edge_id] = g_dep_edge;
-                        visited[m_dep_edge_id] = true;
                     }
                 }   
             }
@@ -3105,7 +3149,7 @@ void GraphSearch::sampleSpanningTree(
 bool GraphSearch::checkSpanningTree(
     vector<Edge> &sampled_edges, vector<int> &flattened_spanning_tree, vector<int> &h2gNodes)
 {
-    h2gNodes.clear();
+    h2gNodes.resize(_h->numNodes(), -1);
     time_t upper_time;
     // Tables for mapping nodes between the two graphs
     unordered_map<int, int> g2hNodes;
@@ -3145,6 +3189,174 @@ bool GraphSearch::checkSpanningTree(
         prevEdgeId = g_e.index();
     }
     return true;
+}
+
+vector<int> GraphSearch::precompute2PairCounts(
+    vector<vector<int>::const_iterator>& search_edges_left_its,
+    vector<vector<int>::const_iterator>& search_edges_right_its)
+{
+    // pair_counts[i] is the number of pairs (l0_j, l1_i) where l0_j <= l1_i
+    int list_num = search_edges_left_its.size();
+    int l1_size = distance(search_edges_left_its[0], search_edges_right_its[0]);
+    int l2_size = distance(search_edges_left_its[1], search_edges_right_its[1]);
+    vector<int> pair_counts(l2_size, 0);
+    vector<int>::const_iterator l1_it = search_edges_left_its[0];
+    for(int i = 0; i < l2_size; i++)
+    {
+        int l2_val = *(search_edges_left_its[1] + i);
+        // keep moving l1_it to right until l1_it > l2_val
+        while(l1_it != search_edges_right_its[0] && *l1_it <= l2_val)
+        {
+            l1_it++;
+        }
+        if (l1_it != search_edges_left_its[0])
+        {
+            l1_it = prev(l1_it); // move back one step to find the last iterator that <= l2_val
+        }
+        pair_counts[i] = distance(search_edges_left_its[0], l1_it);
+        if (i > 0)
+        {
+            pair_counts[i] += pair_counts[i-1]; // prefix sum
+        }
+    }
+    return pair_counts;
+}
+
+vector<int> GraphSearch::precompute2PairCounts(
+    vector<vector<int>::const_iterator>& search_edges_left_its,
+    vector<vector<int>::const_iterator>& search_edges_right_its,
+    vector<int>& pair_counts
+)
+{
+    int l1_size = distance(search_edges_left_its[0], search_edges_right_its[0]);
+    int l2_size = distance(search_edges_left_its[1], search_edges_right_its[1]);
+    vector<int> new_pair_cnts(l2_size); // pair_counts considering pair_counts and the l2 relationship
+    for(int i = 0; i < l2_size; i++)
+    {
+        int l2_val = *(search_edges_left_its[1] + i);
+        // find index in l1 where l1[idx] <= l2_val
+        auto l1_it = upper_bound(search_edges_left_its[0], search_edges_right_its[0], l2_val);
+        int l1_idx = distance(search_edges_left_its[0], l1_it);
+        int cntLessThanT2 = pair_counts[l1_idx];
+        new_pair_cnts[i] = cntLessThanT2;
+    }
+    return new_pair_cnts;
+}
+
+
+long long int GraphSearch::countSortedPairs(
+    vector<vector<int>::const_iterator> search_edges_left_its,
+    vector<vector<int>::const_iterator> search_edges_right_its
+)
+{
+    /*
+    For sorted lists l0, l1, l2, ..., ln-1 
+    with begin and end iterator as search_edges_left_it and search_edges_right_it,
+    count the number of pairs (t0, t1, t2, ..., tn-1) where ti is an element in list li
+    and t0 < t1 < t2 < ... < tn-1
+    */
+    long long int cnt = 0;
+    int list_num = search_edges_left_its.size();
+    // base case: only one list
+    // distance of two binary searches to count the number of motif instances
+    if (list_num == 1)
+    {
+        cnt = distance(search_edges_left_its[0], search_edges_right_its[0]);
+    }
+    else if(list_num == 2)
+    {
+        // two-pointer technique to count the number of motif instances
+        // move iteration from left to right to maintain the relative temporal ordering of extra edges
+        vector<vector<int>::const_iterator> search_edges_its(search_edges_left_its.size());
+        for(int i = 0; i < search_edges_left_its.size(); i++)
+        {
+            // iterate from left to right
+            search_edges_its[i] = search_edges_left_its[i];
+        }
+        while(
+            (search_edges_its[0] != search_edges_right_its[0]) &&
+            (search_edges_its[1] != search_edges_right_its[1])
+        )
+        {
+            // keep moving search_edges_its[1] to right until it > search_edges_its[0]
+            if (*search_edges_its[1] <= *search_edges_its[0])
+            {
+                search_edges_its[1]++;
+            }
+            else
+            {
+                // all other extra edges must > previous edge index
+                cnt += distance(search_edges_its[1], search_edges_right_its[1]);
+                // update search_edges_its[0]
+                search_edges_its[0]++;
+            }
+        }
+    }
+    else if(list_num == 3)
+    {
+        // use 3-pointer technique to count the number of motif instances
+        vector<vector<int>::const_iterator> search_edges_its(search_edges_left_its.size());
+        for(int i = 0; i < search_edges_left_its.size(); i++)
+        {
+            // iterate from left to right
+            search_edges_its[i] = search_edges_left_its[i];
+        }
+        // anchor on the second extra edge
+        for(; search_edges_its[1] != search_edges_right_its[1]; search_edges_its[1]++)
+        {
+            // keep moving search_edges_its[0] to right until it >= search_edges_its[1]
+            while(search_edges_its[0] != search_edges_right_its[0] && *search_edges_its[0] < *search_edges_its[1])
+            {
+                search_edges_its[0]++;
+            }
+            // keep moving search_edges_its[2] to right until it > search_edges_its[1]
+            while(search_edges_its[2] != search_edges_right_its[2] && *search_edges_its[2] <= *search_edges_its[1])
+            {
+                search_edges_its[2]++;
+            }
+            int num_edegs_0 = distance(search_edges_left_its[0], search_edges_its[0]);
+            int num_edges_2 = distance(search_edges_its[2], search_edges_right_its[2]);
+            cnt += num_edegs_0 * num_edges_2;
+        }
+    }
+    else
+    {
+        // for list_num > 3, use recursion
+        // At 1st step, precompute the number of pairs in the first two lists l0, l1
+        // and store the vector as pair_cnt0;
+        // then use pair_cnt1, l1 and l2 to count number of pairs in (t1, t2, t3) in 
+        // l0, l1, l2 where t1 <= t2 <= t3, store the counts in pair_cnt2
+        // repeat this until we reach the last two lists, then we could use 3-pointer technique
+        // to count the number of pairs of ln-3, ln-2, ln-1 (with pair_cnt_{n-3})
+        vector<int> pair_cnts;
+        for(int i = 1; i < list_num - 2; i++)
+        {
+            vector<vector<int>::const_iterator> list_left_its{search_edges_left_its[i-1], search_edges_left_its[i]};
+            vector<vector<int>::const_iterator> list_right_its{search_edges_right_its[i-1], search_edges_right_its[i]};
+            if (i == 1)
+            {
+                pair_cnts = precompute2PairCounts(list_left_its, list_right_its);
+            }
+            else
+            {
+                pair_cnts = precompute2PairCounts(list_left_its, list_right_its, pair_cnts);
+            }
+        }
+        // binary search to find the number of pairs of ln-3 (t1), ln-2 (t2), ln-1 (t3)
+        for(auto it=search_edges_left_its[list_num-2]; it != search_edges_right_its[list_num-2]; it++)
+        {
+            int l2_val = *it;
+            // find index in l1 where l1[idx] < l2_val (compare edge id)
+            auto l1_it = lower_bound(search_edges_left_its[list_num-3], search_edges_right_its[list_num-3], l2_val);
+            int l1_idx = distance(search_edges_left_its[list_num-3], l1_it);
+            int cntLessThanT2 = pair_cnts[l1_idx];
+            // find index in l3 where l3[idx] > l2_val (compare edge id)
+            auto l3_it = upper_bound(search_edges_left_its[list_num-1], search_edges_right_its[list_num-1], l2_val);
+            int cntGreaterThanT2 = distance(l3_it, search_edges_right_its[list_num-1]);
+            cnt += cntLessThanT2 * cntGreaterThanT2;
+        }
+    }
+    return cnt;
 }
 
 
@@ -3223,7 +3435,7 @@ long long int GraphSearch::deriveMotifCounts(
             search_edges_left_its.push_back(search_edges_left_it);
             search_edges_right_its.push_back(search_edges_right_it);
         }
-        
+        /*
         long long int cur_range_cnts = 0;
         if (extra_edges.size() == 1)
         {
@@ -3287,6 +3499,8 @@ long long int GraphSearch::deriveMotifCounts(
                 cout << "Do not support > 3 extra edges that has the same range respect to spannin tree in motif" << endl;
             }
         }
+        */
+        long long int cur_range_cnts = countSortedPairs(search_edges_left_its, search_edges_right_its);
         motif_cnt *= cur_range_cnts;
         if (motif_cnt == 0) // early terminate if no motif instance
             return 0;
@@ -3431,7 +3645,7 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
     }
     t.Stop();
     cout << "sample time: " << t.Seconds() << endl;
-    cout << "motif_cnt: " << motif_cnt << endl;
+    // cout << "motif_cnt: " << motif_cnt << endl;
 
     float_t W_div_k = (float_t) W / max_trial;
     float estimated_cnt = (float) motif_cnt  * W_div_k;

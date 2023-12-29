@@ -357,6 +357,18 @@ public:
                                                 int delta, long long int max_trial, 
                                                 std::vector<std::vector<int>>& spanning_tree);
     
+    std::vector<int> precompute2PairCounts(
+        std::vector<std::vector<int>::const_iterator>& search_edges_left_its,
+        std::vector<std::vector<int>::const_iterator>& search_edges_right_its);
+
+    std::vector<int> precompute2PairCounts(
+        std::vector<std::vector<int>::const_iterator>& search_edges_left_its,
+        std::vector<std::vector<int>::const_iterator>& search_edges_right_its,
+        std::vector<int>& pair_counts);
+
+    long long int countSortedPairs(
+        std::vector<std::vector<int>::const_iterator> search_edges_left_its,
+        std::vector<std::vector<int>::const_iterator> search_edges_right_its);
 
 private:
     /** Creates map of which nodes in G can map to the nodes we are searching for from H */
