@@ -349,7 +349,9 @@ public:
         std::vector<std::vector<int>> &spanning_tree,
         std::vector<int> &flattened_spanning_tree,
         std::vector<Dependency> &dep_edges,
-        std::map<std::pair<int, int>, std::vector<int>> sp_tree_range_edges
+        std::map<std::pair<int, int>, std::vector<int>> sp_tree_range_edges,
+        long long int& valid_sp_cnt,
+        long long int& nz_sp_cnt
     );
 
     std::vector<float> SpanningTreeSample(const Graph &g, const Graph &h,
