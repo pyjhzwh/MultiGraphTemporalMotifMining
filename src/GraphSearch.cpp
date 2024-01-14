@@ -3211,20 +3211,12 @@ vector<int> GraphSearch::precompute2PairCounts(
     for(int i = 0; i < l2_size; i++)
     {
         int l2_val = *(search_edges_left_its[1] + i);
-        // keep moving l1_it to right until l1_it > l2_val
-        while(l1_it != search_edges_right_its[0] && *l1_it <= l2_val)
+        // keep moving l1_it to right until l1_it >= l2_val
+        while(l1_it != search_edges_right_its[0] && *l1_it < l2_val)
         {
             l1_it++;
         }
-        if (l1_it != search_edges_left_its[0])
-        {
-            l1_it = prev(l1_it); // move back one step to find the last iterator that <= l2_val
-        }
         pair_counts[i] = distance(search_edges_left_its[0], l1_it);
-        if (i > 0)
-        {
-            pair_counts[i] += pair_counts[i-1]; // prefix sum
-        }
     }
     return pair_counts;
 }
@@ -3238,18 +3230,22 @@ vector<int> GraphSearch::precompute2PairCounts(
     int l1_size = distance(search_edges_left_its[0], search_edges_right_its[0]);
     int l2_size = distance(search_edges_left_its[1], search_edges_right_its[1]);
     vector<int> new_pair_cnts(l2_size); // pair_counts considering pair_counts and the l2 relationship
+    vector<int>::const_iterator l1_it = search_edges_left_its[0];
+    int sum = 0;
     for(int i = 0; i < l2_size; i++)
     {
         int l2_val = *(search_edges_left_its[1] + i);
-        // find index in l1 where l1[idx] <= l2_val
-        auto l1_it = upper_bound(search_edges_left_its[0], search_edges_right_its[0], l2_val);
-        int l1_idx = distance(search_edges_left_its[0], l1_it);
-        int cntLessThanT2 = pair_counts[l1_idx];
-        new_pair_cnts[i] = cntLessThanT2;
+        // find index in l1 where l1[idx] < l2_val
+        while (l1_it < search_edges_right_its[0] && *l1_it < l2_val)
+        {
+            int l1_idx = distance(search_edges_left_its[0], l1_it);
+            sum += pair_counts[l1_idx];
+            l1_it++;
+        }
+        new_pair_cnts[i] = sum;
     }
     return new_pair_cnts;
 }
-
 
 long long int GraphSearch::countSortedPairs(
     vector<vector<int>::const_iterator> search_edges_left_its,
@@ -3349,16 +3345,25 @@ long long int GraphSearch::countSortedPairs(
                 pair_cnts = precompute2PairCounts(list_left_its, list_right_its, pair_cnts);
             }
         }
+        vector<int>::const_iterator l1_it = search_edges_left_its[list_num-3];
+        vector<int>::const_iterator l3_it = search_edges_left_its[list_num-1];
         // binary search to find the number of pairs of ln-3 (t1), ln-2 (t2), ln-1 (t3)
+        int cntLessThanT2 = 0; // prefix sum
         for(auto it=search_edges_left_its[list_num-2]; it != search_edges_right_its[list_num-2]; it++)
         {
             int l2_val = *it;
-            // find index in l1 where l1[idx] < l2_val (compare edge id)
-            auto l1_it = lower_bound(search_edges_left_its[list_num-3], search_edges_right_its[list_num-3], l2_val);
-            int l1_idx = distance(search_edges_left_its[list_num-3], l1_it);
-            int cntLessThanT2 = pair_cnts[l1_idx];
-            // find index in l3 where l3[idx] > l2_val (compare edge id)
-            auto l3_it = upper_bound(search_edges_left_its[list_num-1], search_edges_right_its[list_num-1], l2_val);
+            // keep moving search_edges_its[list_num-3] to right until it >= search_edges_its[1]
+            while(l1_it != search_edges_right_its[list_num-3] && *l1_it < l2_val)
+            {
+                int l1_idx = distance(search_edges_left_its[list_num-3], l1_it);
+                cntLessThanT2 += pair_cnts[l1_idx];
+                l1_it++;
+            }
+            // keep moving search_edges_its[list_num-1] to right until it > search_edges_its[1]
+            while(l3_it != search_edges_right_its[list_num-1] && *l3_it <= l2_val)
+            {
+                l3_it++;
+            }
             int cntGreaterThanT2 = distance(l3_it, search_edges_right_its[list_num-1]);
             cnt += cntLessThanT2 * cntGreaterThanT2;
         }
@@ -3546,7 +3551,9 @@ long long int GraphSearch::sampleAndCheckMotifSpanningTree(
             long long int derive_cnt = deriveMotifCounts(sampled_edges, flattened_spanning_tree, sp_tree_range_edges, h2gNodes);
             motifs_cnt += derive_cnt;
             if (derive_cnt > 0)
+            {
                 nz_sp_cnt++;
+            }
         }
     }
     return motifs_cnt;
