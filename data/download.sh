@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATASET="wiki-talk-temporal"
+DATASET="CollegeMsg"
 echo $DATASET
 
 cd "${0%/*}"

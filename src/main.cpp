@@ -173,7 +173,7 @@ int main(int argc, char **argv)
                 }
                 cout << "Running in " << num_of_threads << " threads" << endl;
                 omp_set_num_threads(num_of_threads);
-                vector<vector<int>> spanning_tree = {{0, 3, 5}, {1}};
+                vector<vector<int>> spanning_tree = {{4, 9} ,{0}};
                 cout << "========== Spanning tree sampling ==========" << endl;
                 const long long int max_trial = args.max_trial();
                 cout << "max_trial: " << max_trial << endl;
