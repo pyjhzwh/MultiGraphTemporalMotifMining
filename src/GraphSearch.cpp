@@ -3667,9 +3667,9 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
     }
     t.Stop();
     cout << "sample time: " << t.Seconds() << endl;
-    cout << "motif_cnt: " << motif_cnt << endl;
     cout << "valid_sp_cnt: " << valid_sp_cnt << endl;
     cout << "nz_sp_cnt: " << nz_sp_cnt << endl;
+    cout << "motif_cnt: " << motif_cnt << endl;
 
     float_t W_div_k = (float_t) W / max_trial;
     float estimated_cnt = (float) motif_cnt  * W_div_k;
