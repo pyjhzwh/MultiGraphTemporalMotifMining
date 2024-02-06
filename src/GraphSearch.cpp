@@ -849,6 +849,380 @@ GraphMatch GraphSearch::convert(const std::stack<int> &s, int g_lastEdge)
     return gm;
 }
 
+long long int GraphSearch::findOrderedSubgraphsSpanningTreeWrapper(const Graph &g, const Graph &h, const MatchCriteria &criteria,
+                                                            const vector<int> &spanning_tree, long long int limit, int delta)
+{
+    /*
+    spanning_tree are the list of edges in motif h that selected to be the spanning tree
+    */
+    // Store class data structures
+    _g = &g;
+    _h = &h;
+    _criteria = &criteria;
+    _delta = delta;
+
+    
+    // store the lower and upperbound respect to spanning tree edges of the extra edges that are not in the spanning tree
+    // SPTreeRangeEdges: (SPtree edge_id 1, SPtree edge_id 2, vector<int> h_edge_ids of extra edges)
+    // the edges in the vector<int> have the index range of (SPtree edge_id 1, SPtree edge_id 2)
+    // edges with same range are counted by n-pointer technique (linear time complexity)
+    map<pair<int, int>, vector<int>> sp_tree_range_edges = analyze_exatra_edges(spanning_tree);
+    cout << "sp_tree_range_edges: " << endl;
+    for(auto &[k, vs]: sp_tree_range_edges)
+    {
+        cout << "[ " << k.first << "," << k.second << " ] : ";
+        for(auto v: vs)
+        {
+            cout << v << ", ";
+        }
+        cout << endl;
+    }
+    // split the spanning_tree into non-deceasing sublist
+    // For example, given matching order as {1, 2, 3, 0}, return value is {{1, 2, 3}, {0}}.
+    _matching_regions_order = getMatchingRegions(spanning_tree);
+
+    return findOrderedSubgraphsSpanningTree(
+        g, h, criteria, spanning_tree, sp_tree_range_edges, limit, delta);
+}
+
+long long int GraphSearch::findOrderedSubgraphsSpanningTree(
+    const Graph &g, const Graph &h, const MatchCriteria &criteria,
+    const vector<int> &spanning_tree, const map<pair<int, int>, vector<int>> sp_tree_range_edges,
+    long long int limit, int delta)
+{
+    
+
+    bool debugOutput = false;
+
+    // Stores the matching subgraphs as list of edge indices
+    long long int results = 0;
+
+    int n = _g->numNodes();
+    int m = _g->numEdges();
+
+    // List of all edge indexes
+    _allEdges.resize(m);
+    for (int i = 0; i < m; i++)
+        _allEdges[i] = i;
+
+    // Tables for mapping nodes and edges between the two graphs
+    // -1 means no match has been assigned yet
+    _h2gNodes.clear();
+    _h2gNodes.resize(h.numNodes(), -1);
+    _g2hNodes.clear();
+    _g2hNodes.resize(n, -1);
+
+    // Keeps track of the number of search edges mapped to a particular
+    // node, so we can know if we need to reset its mapping when removing
+    // edges from a search trail.
+    _numSearchEdgesForNode.clear();
+    _numSearchEdgesForNode.resize(n, 0);
+
+    // the edge of the motif that we are trying to map to so far
+    vector<Edge> dfs_edges(_h->numEdges(), Edge(-1, -1, -1, -1));
+
+
+    // Stores all edges found that match our query.
+    // Stack used to backtrack when a particular search ends up a dead-end.
+    while (_sg_edgeStack.empty() == false) // Make sure it's empty to start
+    {
+        _sg_edgeStack.pop();
+        //_h_edgeStack.pop();
+    }
+
+    
+    // vars to keep track of which motif edge we are currently trying to map to, init to 0
+    _region_i = 0;
+    _matching_h_i = 0;
+
+    // The edge from H we are trying to match in G
+    int h_i = _matching_regions_order[_region_i][_matching_h_i];
+    // The current edge from G we are testing out (yes, should start at -1)
+    int g_i = 0;
+
+    // upper bounds to see if we've run out of edges in the current level of DFS search tree
+    _upper_id = _g->numEdges();
+    _upper_time = INT_MAX;
+
+    // Loop until we can account for all subgraphs matching our edges
+    while (true)
+    {
+
+        // If we've run out of edges, we need to pop the last edge used,
+        // and start the search back at the edge after that one
+        while ((g_i >= _upper_id) || (_sg_edgeStack.empty() == false && g.edges()[g_i].time() > _upper_time))
+        {
+            // If the edge stack is empty, then we have no options left
+            // and need to give up.
+            if (_sg_edgeStack.empty())
+            {
+                return results;
+            }
+
+            // Pop the stack
+            int last_g_i = _sg_edgeStack.top();
+            _sg_edgeStack.pop();
+
+            // Get edge object
+            const Edge &g_edge = _g->edges()[last_g_i];
+            if (debugOutput)
+                cout << "Giving up on edge " << last_g_i << ": " << g_edge.source() << ", " << g_edge.dest() << endl;
+
+            // Decrement the number of edges for the nodes in g_i
+            _numSearchEdgesForNode[g_edge.source()]--;
+            _numSearchEdgesForNode[g_edge.dest()]--;
+
+            // If any of them reach zero, then we need to remove the
+            // node mapping for that node, since none of our edges are
+            // currently using it (making it free to be re-assigned).
+            if (_numSearchEdgesForNode[g_edge.source()] == 0)
+            {
+                int old_h_u = _g2hNodes[g_edge.source()];
+                _h2gNodes[old_h_u] = -1;
+                _g2hNodes[g_edge.source()] = -1;
+            }
+            if (_numSearchEdgesForNode[g_edge.dest()] == 0)
+            {
+                int old_h_v = _g2hNodes[g_edge.dest()];
+                _h2gNodes[old_h_v] = -1;
+                _g2hNodes[g_edge.dest()] = -1;
+            }
+
+            // Decrement region_i and search_h_i, so that we can find a new one
+            decreNextEdge();
+            // Make sure we start the search immediately after the failed edge
+            g_i = last_g_i + 1;
+        }
+
+        // Get query edge
+        const Edge &h_edge = _h->edges()[_matching_regions_order[_region_i][_matching_h_i]];
+        int h_u = h_edge.source();
+        int h_v = h_edge.dest();
+
+        g_i = this->findNextMatch(_matching_regions_order[_region_i][_matching_h_i], g_i);
+        // cout << "g_i: " << g_i << ", h_i: [" << _region_i << "][" << _matching_h_i << "]" << endl;
+
+        if (g_i < _upper_id)
+        {
+
+            // Test to see if whole graph is found
+            if ((_region_i == _matching_regions_order.size() - 1) && (_matching_h_i == _matching_regions_order[_region_i].size() - 1))
+            {
+
+                // GraphMatch match = convert_flip(_sg_edgeStack, g_i);
+                // for(int i=0; i < match.edges().size(); i++)
+                //     cout << match.edges()[i] << ",";
+                // cout << endl;
+                // Add new subgraph to the results
+                // results.push_back(match);
+
+                // after the first few levels (spanning tree chosen) of DFS, we can start to count the number of subgraphs that extended
+                // from the the selected spanning tree by using pointer technique
+                results += deriveMotifCounts(dfs_edges, spanning_tree, sp_tree_range_edges, _h2gNodes);
+
+                g_i++;
+
+                // Don't increment h_i (or perform mappings), because we want
+                // to find if there are other alternative subgraphs for that edge.
+                // cout << "Found subgraph #" << results.size() << endl;
+                // Test if we've reached our limit, and stop if we have.
+                if (results >= limit)
+                    return results;
+            }
+            // Otherwise, add the edge and mappings to the subgraph search
+            // and continue on to find next edges.
+            else
+            {
+                // Get matched edge
+                const Edge &g_edge = _g->edges()[g_i];
+                int g_u = g_edge.source();
+                int g_v = g_edge.dest();
+
+                // Set the regionFirstEdge and regionLastEdge id and time, if needed
+                if (_matching_h_i == 0)
+                {
+                    MatchRegion *cur_region = new MatchRegion();
+                    cur_region->regionFirstEdgeTime = g_edge.time();
+                    cur_region->regionFirstEdgeid = g_edge.index();
+                    _matching_regions_info.push_back(cur_region);
+                }
+                if (_matching_h_i == _matching_regions_order[_region_i].size() - 1)
+                {
+                    MatchRegion *cur_region = _matching_regions_info[_matching_regions_info.size() - 1];
+                    cur_region->regionLastEdgeTime = g_edge.time();
+                    cur_region->regionLastEdgeid = g_edge.index();
+                }
+
+                // Map the nodes from each graph
+                _h2gNodes[h_u] = g_u;
+                _h2gNodes[h_v] = g_v;
+                _g2hNodes[g_u] = h_u;
+                _g2hNodes[g_v] = h_v;
+
+                // Increment number of search edges for each node in our G edge
+                _numSearchEdgesForNode[g_u]++;
+                _numSearchEdgesForNode[g_v]++;
+
+                // Add it to the stack
+                _sg_edgeStack.push(g_i);
+                // Add it to the dfs_edges
+                dfs_edges[h_edge.index()] = g_edge;
+
+                // Increment to next edge to find
+                g_i = increNextEdge(g_i);
+            }
+        }
+        // Increment the edge to test
+        // g_i++;
+    }
+    return results;
+}
+
+/** Get vector of matching order of regions given the matching order. In each region, the
+ * matching order is consecutively increasing. For example, given matching order as {1, 2, 3, 0},
+ * return value is {{1, 2, 3}, {0}}.
+ */
+vector<vector<int>> GraphSearch::getMatchingRegions(const vector<int> &matching_order)
+{
+    vector<vector<int>> regions;
+    vector<int> region;
+    if (matching_order.size() == 0)
+        return regions;
+    for (int i = 0; i < matching_order.size(); i++)
+    {
+        if ((region.size() != 0) && (matching_order[i] != matching_order[i - 1] + 1))
+        {
+            regions.push_back(region);
+            region.clear();
+        }
+        region.push_back(matching_order[i]);
+    }
+    regions.push_back(region);
+    return regions;
+}
+
+int GraphSearch::increNextEdge(int g_i)
+{
+    if (_matching_h_i + 1 < _matching_regions_order[_region_i].size())
+    {
+        // only need to update once for each region
+        if (_matching_h_i == 0)
+        {
+            updateRegionUpperTimeOnCur();
+        }
+        _matching_h_i++;
+        // next edge is in the same region, increment the g_i to start
+        return g_i + 1;
+    }
+    else
+    {
+        _region_i++;
+        _matching_h_i = 0;
+        if (_region_i < _matching_regions_order.size())
+        {
+            return updateRegionUpperBoundOnPrev();
+        }
+        else
+        {
+            return _g->edges().size();
+        }
+    }
+}
+
+void GraphSearch::decreNextEdge()
+{
+    if (_matching_h_i > 0)
+    {
+        _matching_h_i--;
+    }
+    else
+    {
+        _region_i--;
+        if (_region_i >= 0)
+        {
+            _matching_h_i = _matching_regions_order[_region_i].size() - 1;
+            updateRegionUpperBoundOnPrev();
+        }
+    }
+    if (_matching_h_i == 0)
+    {
+        // clear current level's matching region info
+        _matching_regions_info.pop_back();
+    }
+}
+
+/** Update the upper bound for the current region _region_i given the previous region info
+ * So that when g_i < upper_id or g.edges()[g_i].time() <= upper_time,
+ * we know that we have run out of input edges g_i matching h_i
+ * Return the start idx of the next level edge to search
+ */
+int GraphSearch::updateRegionUpperBoundOnPrev()
+{
+    int lower_id = 0;
+    // reset
+    _upper_id = _g->numEdges();
+    _upper_time = INT_MAX;
+    if (_region_i == 0)
+    {
+        updateRegionUpperTimeOnCur();
+    }
+    for (int i = 0; i < _region_i; i++)
+    {
+        vector<int> &prev_region = _matching_regions_order[i];
+        if (_matching_regions_order[_region_i][0] > prev_region[prev_region.size() - 1])
+        {
+            _upper_time = min(_upper_time, _matching_regions_info[i]->regionFirstEdgeTime + _delta);
+            lower_id = max(lower_id, _matching_regions_info[i]->regionLastEdgeid + 1);
+        }
+        // _matching_regions_order[_region_i][-1] < prev_region[0]
+        else
+        {
+            _upper_id = min(_upper_id, _matching_regions_info[i]->regionFirstEdgeid);
+            lower_id = max(lower_id, findRootEdgeStartLowerTime(_matching_regions_info[i]->regionLastEdgeTime - _delta));
+        }
+    }
+    return lower_id;
+}
+
+/** Update the upper time for current region next _matching_h_i based on this region's
+ * first edge time.
+ * For example, region = {edge1, edge2, edge3}. Edge3's time <= edge1's time + delta
+ */
+void GraphSearch::updateRegionUpperTimeOnCur()
+{
+    _upper_time = _matching_regions_info[_region_i]->regionFirstEdgeTime + _delta;
+}
+
+int GraphSearch::findRootEdgeStartLowerTime(time_t lower_time)
+{
+    const vector<int> &edgeIndexes = _allEdges;
+    // perform binary search
+    int left = 0, right = edgeIndexes.size() - 1;
+    while (true)
+    {
+        if (right <= left)
+        {
+            return left;
+        }
+        int i = (right + left) / 2;
+        int ei = edgeIndexes[i];
+        if (_g->edges()[ei].time() == lower_time)
+            right = i;
+        if (_g->edges()[ei].time() >= lower_time && i == left)
+            return i;
+        if (_g->edges()[ei].time() < lower_time)
+            left = i + 1;
+        else
+        {
+            if (_g->edges()[edgeIndexes[i - 1]].time() < lower_time)
+            {
+                return i;
+            }
+            right = i - 1;
+        }
+    }
+}
+
 /*Counting increasing 3-stars.*/
 long long int GraphSearch::count_stars(int delta, int id_begin, int id_end)
 {
@@ -2779,7 +3153,7 @@ vector<Dependency> GraphSearch::analyze_spanning_tree(vector<vector<int>>& spann
     return dep_edges;
 }
 
-map<pair<int, int>, vector<int>> GraphSearch::analyze_exatra_edges(vector<int>& flattened_spanning_tree)
+map<pair<int, int>, vector<int>> GraphSearch::analyze_exatra_edges(const vector<int>& flattened_spanning_tree)
 {
     map<pair<int, int>, vector<int>> hash;
     vector<int> extra_edges; // extra edges in h that are not in the spanning tree
@@ -3374,8 +3748,8 @@ long long int GraphSearch::countSortedPairs(
 
 long long int GraphSearch::deriveMotifCounts(
     vector<Edge>& sampled_edges,
-    vector<int>& flattened_spanning_tree,
-    map<pair<int, int>, vector<int>>& sp_tree_range_edges,
+    const vector<int>& flattened_spanning_tree,
+    const map<pair<int, int>, vector<int>>& sp_tree_range_edges,
     vector<int> &h2gNodes
 )
 {
@@ -3389,7 +3763,7 @@ long long int GraphSearch::deriveMotifCounts(
         int right_spanning_tree_edge_id = k.second;
         // every edge in extra_edges have the same upper and lower bound with respect to spanning tree edges,
         // they are sorted by index
-        vector<int>& extra_edges = vs;
+        const vector<int>& extra_edges = vs;
         vector<vector<int>::const_iterator> search_edges_left_its;
         vector<vector<int>::const_iterator> search_edges_right_its;
         for(int h_extra_edge_id: extra_edges)

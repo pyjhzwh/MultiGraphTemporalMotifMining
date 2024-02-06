@@ -105,6 +105,16 @@ public:
     }
 };
 
+class MatchRegion
+{
+public:
+    // id and time of the first and last edge of the current region
+    int regionFirstEdgeid;
+    time_t regionFirstEdgeTime;
+    int regionLastEdgeid;
+    time_t regionLastEdgeTime;
+};
+
 /**
  * Main class for performing subgraph searches.
  */
@@ -143,6 +153,27 @@ public:
     long long int findOrderedSubgraphs(const Graph &g, const Graph &h, const MatchCriteria &criteria, long long int limit = LONG_LONG_MAX, int delta = INT_MAX);
     long long int findOrderedSubgraphsMultiThread(
         const Graph &g, const Graph &h, const MatchCriteria &criteria, long long int limit = LONG_LONG_MAX, int delta = INT_MAX, int num_of_threads=1, int partition_per_thread=1);
+    
+
+    long long int findOrderedSubgraphsSpanningTreeWrapper(
+        const Graph &g, const Graph &h, const MatchCriteria &criteria,
+        const std::vector<int> &spanning_tree, long long int limit, int delta);
+
+    /**
+     * Performs a subgraph search with level shuffling
+     * @param g  The directed graph to search on.
+     * @param h  The directed query graph we are trying to match.
+     * @param criteria  Polymorphic class specifies whether or not two given edges match the query criteria.
+     * @param st_matching_order  The matching order regarding the original h motif edges
+     *                           that sorted chronologically (only for edges that selected as the spanning tree)
+     * @param limit  The max number of subgraphs to find.
+     * @param delta  The max time duration allowed between edge matches.
+     * @return  List of subgraphs that match h.
+     */
+    long long int findOrderedSubgraphsSpanningTree(const Graph &g, const Graph &h, const MatchCriteria &criteria,
+                                                    const std::vector<int> &spanning_tree,
+                                                    const std::map<std::pair<int, int>, std::vector<int>> sp_tree_range_edges, long long int limit = LONG_LONG_MAX, int delta = INT_MAX);
+    
     void findOrderedSubgraphs(
         long long int *results, int start_edge_idx, int end_edge_idx,
         const Graph &g, const Graph &h, const MatchCriteria &criteria, long long int limit = LONG_LONG_MAX, int delta = INT_MAX);
@@ -314,7 +345,7 @@ public:
     std::vector<Dependency> analyze_spanning_tree(std::vector<std::vector<int>>& spanning_tree);
 
     std::map<std::pair<int, int>, std::vector<int>> analyze_exatra_edges(
-        std::vector<int>& flattened_spanning_tree);
+        const std::vector<int>& flattened_spanning_tree);
 
     long long int preprocess(
         std::vector<std::vector<int>> &spanning_tree, std::vector<Dependency> &dep_edges,
@@ -338,8 +369,8 @@ public:
 
     long long int deriveMotifCounts(
         std::vector<Edge>& sampled_edges,
-        std::vector<int>& flattened_spanning_tree,
-        std::map<std::pair<int, int>, std::vector<int>>& sp_tree_range_edges,
+        const std::vector<int>& flattened_spanning_tree,
+        const std::map<std::pair<int, int>, std::vector<int>>& sp_tree_range_edges,
         std::vector<int>& h2gNodes
     );
 
@@ -410,6 +441,38 @@ private:
      without modifying the stack. */
     GraphMatch convert(const std::stack<int> &s, int g_lastEdge);
 
+    /** Get vector of matching order of regions given the matching order. In each region, the
+     * matching order is consecutively increasing. For example, given matching order as {1, 2, 3, 0},
+     * return value is {{1, 2, 3}, {0}}.
+     */
+    std::vector<std::vector<int>> getMatchingRegions(const std::vector<int> &matching_order);
+
+    /** update region_i and matching_h_i when trying to match the next edge of motif h
+     * Go deeper to the next level in DFS search tree
+     * Return the start idx of next edge to search
+     */
+    int increNextEdge(int g_i);
+
+    /** update region_i and matching_h_i when trying to match the prev edge of motif h
+     * Go back to previous level in DFS search tree
+     */
+    void decreNextEdge();
+
+    /** Update the upper bound for the current region _region_i given the previous region info
+     * So that when g_i < upper_id or g.edges()[g_i].time() <= upper_time,
+     * we know that we have run out of input edges g_i matching h_i
+     * Return the start idx of the next level edge to search
+     */
+    int updateRegionUpperBoundOnPrev();
+
+    /** Update the upper time for current region next _matching_h_i based on this region's
+     * first edge time.
+     * For example, region = {edge1, edge2, edge3}. Edge3's time <= edge1's time + delta
+     */
+    void updateRegionUpperTimeOnCur();
+
+    int findRootEdgeStartLowerTime(time_t lower_time);
+
     // count 3-star
     long long int count_stars(int delta, int id_begin, int id_end);
     long long int count_stars_multi_thread(int delta, int num_of_threads, int partition_per_thread);
@@ -433,7 +496,17 @@ private:
     std::stack<int> _sg_edgeStack; //, _h_edgeStack;
     std::vector<int> _allEdges;
 
+    int _upper_id;      // upper bound of the g_i when we run out of edges
     time_t _upper_time; // upper bound of the g.edges()[g_i].time() when we run out of edges
+
+    std::vector<std::vector<int>> _matching_regions_order;
+    std::vector<MatchRegion *> _matching_regions_info;
+
+    // vars to keep track of which motif edge we are currently trying to map to
+    // _region_i: which region in _matching_regions_order
+    int _region_i;
+    // _matching_h_i: i-th h_i in _matching_regions_order[_region_i]
+    int _matching_h_i;
 };
 
 #endif /* GRAPHSEARCH_H */
