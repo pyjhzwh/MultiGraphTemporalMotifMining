@@ -4,7 +4,7 @@ SRC_DIR = src
 OBJ_DIR = obj
 SRC = $(wildcard $(SRC_DIR)/*.cpp)
 OBJ = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRC))
-CFLAGS = --std=c++14 -O2 -pthread -fopenmp
+CFLAGS = --std=c++17 -O2 -pthread -fopenmp
 INCLUDES =
 LDFLAGS = 
 TARGET = graph_search
