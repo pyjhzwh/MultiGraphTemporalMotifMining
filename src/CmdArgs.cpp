@@ -9,7 +9,7 @@ CmdArgs::CmdArgs(int argc, char **argv)
     _success = true; // Unless proven otherwise
     _unordered = false; // By default, take chronological ordering into account
     _verbose = false; // verbose print
-    _algo = 1; // test _algorithm only; 0 for baseline, 1 for TEACUPS M1-M7, 2 for TEACUPS M0
+    _algo = 0; // test _algorithm only; 0 for baseline, 1 for TEACUPS M1-M7, 2 for TEACUPS M0
     num_of_threads = 1; // default use single thread
     _max_trial = 1e3; // the number of samples to take in TEACUPS 3 path sampling
     _need_h = false; // need query file or not
@@ -117,9 +117,9 @@ CmdArgs::CmdArgs(int argc, char **argv)
 	    _algo = atoi(argv[i]);
         if(_algo == 0)
             _need_h = true; // BT baseline needs query graph
-	    if(_algo > 2)
+	    if(_algo > 3)
 	    {
-		cout << "algo must be an integer 0, 1 or 2." << endl;
+		cout << "algo must be an integer 0, 1, 2 or 3." << endl;
 		_success = false;
 	    }
 	}

@@ -880,6 +880,17 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTreeWrapper(const Graph &
     // split the spanning_tree into non-deceasing sublist
     // For example, given matching order as {1, 2, 3, 0}, return value is {{1, 2, 3}, {0}}.
     _matching_regions_order = getMatchingRegions(spanning_tree);
+    cout << "_matching_regions_order: " << endl;
+    for(auto &v: _matching_regions_order)
+    {
+        cout << "{";
+        for(auto vv: v)
+        {
+            cout << vv << ", ";
+        }
+        cout << "},";
+    }
+    cout << endl;
 
     return findOrderedSubgraphsSpanningTree(
         g, h, criteria, spanning_tree, sp_tree_range_edges, limit, delta);
@@ -1015,6 +1026,21 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTree(
                 // cout << endl;
                 // Add new subgraph to the results
                 // results.push_back(match);
+                const Edge &g_edge = _g->edges()[g_i];
+                int g_u = g_edge.source();
+                int g_v = g_edge.dest();
+
+                dfs_edges[h_edge.index()] = g_edge;
+
+                // Map the nodes from each graph
+                _h2gNodes[h_u] = g_u;
+                _h2gNodes[h_v] = g_v;
+                _g2hNodes[g_u] = h_u;
+                _g2hNodes[g_v] = h_v;
+
+                // Increment number of search edges for each node in our G edge
+                _numSearchEdgesForNode[g_u]++;
+                _numSearchEdgesForNode[g_v]++;
 
                 // after the first few levels (spanning tree chosen) of DFS, we can start to count the number of subgraphs that extended
                 // from the the selected spanning tree by using pointer technique
@@ -1090,7 +1116,7 @@ vector<vector<int>> GraphSearch::getMatchingRegions(const vector<int> &matching_
         return regions;
     for (int i = 0; i < matching_order.size(); i++)
     {
-        if ((region.size() != 0) && (matching_order[i] != matching_order[i - 1] + 1))
+        if ((region.size() != 0) && (matching_order[i] < matching_order[i - 1]))
         {
             regions.push_back(region);
             region.clear();

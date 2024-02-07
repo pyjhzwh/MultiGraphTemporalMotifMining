@@ -37,6 +37,7 @@ int main(int argc, char **argv)
                 g.disp();
             cout << endl;
         }
+        long long int limit = LONG_LONG_MAX; // No limit
 
         // Keeps track of the subgraph counts for each query and each delta value
         vector<vector<int>> queryDeltaCounts;
@@ -90,8 +91,7 @@ int main(int argc, char **argv)
                 omp_set_num_threads(num_of_threads);
 
                 // Try each of the requested delta time restrictions
-                    
-                long long int limit = LONG_LONG_MAX; // No limit
+                
                 GraphSearch search;
 
                 cout << "========== Backtracking baseline ==========" << endl;
@@ -134,7 +134,7 @@ int main(int argc, char **argv)
             cout << endl;
             std::cout << "total time searchPB.findOrderedSubgraphs (s) is: " << avg_time << " s." << std::endl;
         }
-        else
+        else if (algo == 2)
         {
             // Try each of the requested query graphs
             for (int i = 0; i < args.queryFnames().size(); i++)
@@ -189,6 +189,56 @@ int main(int argc, char **argv)
                 std::cout << "total time searchPB.findOrderedSubgraphs (s) is: " << avg_time << " s." << std::endl;
             }
         }
+        else if (algo == 3)
+        {
+            // Try each of the requested query graphs
+            for (int i = 0; i < args.queryFnames().size(); i++)
+            {
+                const string &queryFname = args.queryFnames()[i];
+                if (args.verbose())
+                    cout << "Loading query graph from " << queryFname << endl;
+                DataGraph h;
+                h = FileIO::loadGenericGDF(queryFname);
+                if (args.verbose())
+                {
+                    h.disp();
+                    cout << h.nodes().size() << " nodes, " << h.edges().size() << " edges" << endl;
+                    if (h.numEdges() < MAX_NUM_EDGES_FOR_DISP)
+                        h.disp();
+                    cout << endl;
+                }
+
+                if (h.nodeAttributesDef() != g.nodeAttributesDef())
+                    throw "Node attribute definitions don't match between the query graph and data graph.";
+                if (h.edgeAttributesDef() != h.edgeAttributesDef())
+                    throw "Edge attribute definitionsgit p don't match between the query graph and data graph.";
+
+                MatchCriteria_DataGraph criteria;
+                if (args.verbose())
+                    cout << "Filtering data graph to improve query performance." << endl;
+
+                GraphSearch search;
+                int num_of_threads = args.num_of_threads;
+                if (num_of_threads * PARTITION_PER_THREAD > g.edges().size())
+                {
+                    num_of_threads = 1;
+                }
+                cout << "Running in " << num_of_threads << " threads" << endl;
+                omp_set_num_threads(num_of_threads);
+                cout << "========== DFS with pointer-technique (multi-graph motifs) ==========" << endl;
+                long long int results;
+                Timer t;
+                double avg_time = 0;
+                vector<int> spanning_tree = {0, 4};
+                t.Start();
+                results = search.findOrderedSubgraphsSpanningTreeWrapper(g, h, criteria, spanning_tree, limit, delta);
+                t.Stop();
+                avg_time += t.Seconds();
+                cout << "count for " << queryFname << " : " << results << endl;
+                std::cout << "total time search (s) is: " << avg_time << " s." << std::endl;
+            }
+        }
+        
         if (args.verbose())
             cout << "Done!\n"
                  << endl;

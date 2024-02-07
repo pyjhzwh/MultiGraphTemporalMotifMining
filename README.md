@@ -22,7 +22,7 @@ It will compile to an executable file `graph_search`.
 * -g: path to input graph (required)
 * -q: path to motif graph (required if algo=0)
 * -delta: 1M(minute), 1H (hour), 1D (day), 1W(week), ... or just the number like 86400, the default unit is seconds
-* -algo: 0, 1 or 2; 0 means running the backtracking exact count baseline [BT](https://ieeexplore.ieee.org/abstract/document/8622100); 1 means running TEACUPS 3-path-sampling algorithm to get counts for M1-M7, 2 means running TEACUPS efficient 3-star(M0) algorithm. You can run multiple algorithms in one run by setting `-algo {algorithm1} -algo {algorithm2}`
+* -algo: 0, 1, 2 or 3; 0 means running the backtracking exact count baseline [BT](https://ieeexplore.ieee.org/abstract/document/8622100); 1 means running hard-coded 6-node motif counting algorithm to get counts; 2 means running spanning tree sampling algorithm; 3 means using pointer-technique to quickly get exact count of motifs that are multi-graphs
 * -thread: thread number, default value is 1
 * -max_trial: the number of samples to take in TEACUPS 3-path-sampling algorithm, only takes effect for algo=1; default value is "1e3". Note if you use scientific notation, make sure surround the number by "".
 
