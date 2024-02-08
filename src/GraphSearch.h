@@ -154,25 +154,21 @@ public:
     long long int findOrderedSubgraphsMultiThread(
         const Graph &g, const Graph &h, const MatchCriteria &criteria, long long int limit = LONG_LONG_MAX, int delta = INT_MAX, int num_of_threads=1, int partition_per_thread=1);
     
-
-    long long int findOrderedSubgraphsSpanningTreeWrapper(
+    long long int findOrderedSubgraphsSpanningTreeMultiThread(
         const Graph &g, const Graph &h, const MatchCriteria &criteria,
-        const std::vector<int> &spanning_tree, long long int limit, int delta);
+        const std::vector<int> &spanning_tree, long long int limit = LONG_LONG_MAX, int delta = INT_MAX,
+        int num_of_threads=1, int partition_per_thread=1);
 
-    /**
-     * Performs a subgraph search with level shuffling
-     * @param g  The directed graph to search on.
-     * @param h  The directed query graph we are trying to match.
-     * @param criteria  Polymorphic class specifies whether or not two given edges match the query criteria.
-     * @param st_matching_order  The matching order regarding the original h motif edges
-     *                           that sorted chronologically (only for edges that selected as the spanning tree)
-     * @param limit  The max number of subgraphs to find.
-     * @param delta  The max time duration allowed between edge matches.
-     * @return  List of subgraphs that match h.
-     */
-    long long int findOrderedSubgraphsSpanningTree(const Graph &g, const Graph &h, const MatchCriteria &criteria,
+    long long int findOrderedSubgraphsSpanningTree(
+        const Graph &g, const Graph &h, const MatchCriteria &criteria,
+        const std::vector<int> &spanning_tree, long long int limit = LONG_LONG_MAX, int delta = INT_MAX);
+
+    long long int findOrderedSubgraphsSpanningTreeInner(int start_edge_idx, int end_edge_idx,
+                                                    const Graph &g, const Graph &h, const MatchCriteria &criteria,
                                                     const std::vector<int> &spanning_tree,
-                                                    const std::map<std::pair<int, int>, std::vector<int>> sp_tree_range_edges, long long int limit = LONG_LONG_MAX, int delta = INT_MAX);
+                                                    const std::map<std::pair<int, int>, std::vector<int>>& sp_tree_range_edges,
+                                                    const std::vector<std::vector<int>>& matching_regions_order,
+                                                    long long int limit = LONG_LONG_MAX, int delta = INT_MAX);
     
     void findOrderedSubgraphs(
         long long int *results, int start_edge_idx, int end_edge_idx,
@@ -345,7 +341,7 @@ public:
     std::vector<Dependency> analyze_spanning_tree(std::vector<std::vector<int>>& spanning_tree);
 
     std::map<std::pair<int, int>, std::vector<int>> analyze_exatra_edges(
-        const std::vector<int>& flattened_spanning_tree);
+        const Graph &h, const std::vector<int>& flattened_spanning_tree);
 
     long long int preprocess(
         std::vector<std::vector<int>> &spanning_tree, std::vector<Dependency> &dep_edges,

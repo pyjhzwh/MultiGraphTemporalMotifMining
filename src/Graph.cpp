@@ -126,6 +126,11 @@ void Graph::disp(int edgeIndex) const
     cout << "[" << edgeIndex << "] " << edge.source() << " -> " << edge.dest() << endl;
 }
 
+void Graph::forceUpdateOrderedEdges() const
+{
+    this->updateOrderedEdges();
+}
+
 void Graph::dispDateTimeRange() const
 {
     time_t start = this->edges().front().time();

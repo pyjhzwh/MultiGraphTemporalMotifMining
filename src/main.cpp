@@ -213,6 +213,9 @@ int main(int argc, char **argv)
                 if (h.edgeAttributesDef() != h.edgeAttributesDef())
                     throw "Edge attribute definitionsgit p don't match between the query graph and data graph.";
 
+                g.forceUpdateOrderedEdges();
+                h.forceUpdateOrderedEdges();
+
                 MatchCriteria_DataGraph criteria;
                 if (args.verbose())
                     cout << "Filtering data graph to improve query performance." << endl;
@@ -231,7 +234,10 @@ int main(int argc, char **argv)
                 double avg_time = 0;
                 vector<int> spanning_tree = {0, 4};
                 t.Start();
-                results = search.findOrderedSubgraphsSpanningTreeWrapper(g, h, criteria, spanning_tree, limit, delta);
+                if (num_of_threads > 1)
+                    results = search.findOrderedSubgraphsSpanningTreeMultiThread(g, h, criteria, spanning_tree, limit, delta, num_of_threads, PARTITION_PER_THREAD);
+                else
+                    results = search.findOrderedSubgraphsSpanningTree(g, h, criteria, spanning_tree, limit, delta);
                 t.Stop();
                 avg_time += t.Seconds();
                 cout << "count for " << queryFname << " : " << results << endl;

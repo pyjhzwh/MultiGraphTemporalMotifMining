@@ -849,24 +849,16 @@ GraphMatch GraphSearch::convert(const std::stack<int> &s, int g_lastEdge)
     return gm;
 }
 
-long long int GraphSearch::findOrderedSubgraphsSpanningTreeWrapper(const Graph &g, const Graph &h, const MatchCriteria &criteria,
-                                                            const vector<int> &spanning_tree, long long int limit, int delta)
+long long int GraphSearch::findOrderedSubgraphsSpanningTreeMultiThread(
+    const Graph &g, const Graph &h, const MatchCriteria &criteria,
+    const vector<int> &spanning_tree, long long int limit, int delta,
+    int num_of_threads, int partition_per_thread)
 {
-    /*
-    spanning_tree are the list of edges in motif h that selected to be the spanning tree
-    */
-    // Store class data structures
-    _g = &g;
-    _h = &h;
-    _criteria = &criteria;
-    _delta = delta;
-
-    
     // store the lower and upperbound respect to spanning tree edges of the extra edges that are not in the spanning tree
     // SPTreeRangeEdges: (SPtree edge_id 1, SPtree edge_id 2, vector<int> h_edge_ids of extra edges)
     // the edges in the vector<int> have the index range of (SPtree edge_id 1, SPtree edge_id 2)
     // edges with same range are counted by n-pointer technique (linear time complexity)
-    map<pair<int, int>, vector<int>> sp_tree_range_edges = analyze_exatra_edges(spanning_tree);
+    map<pair<int, int>, vector<int>> sp_tree_range_edges = analyze_exatra_edges(h, spanning_tree);
     cout << "sp_tree_range_edges: " << endl;
     for(auto &[k, vs]: sp_tree_range_edges)
     {
@@ -879,9 +871,9 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTreeWrapper(const Graph &
     }
     // split the spanning_tree into non-deceasing sublist
     // For example, given matching order as {1, 2, 3, 0}, return value is {{1, 2, 3}, {0}}.
-    _matching_regions_order = getMatchingRegions(spanning_tree);
-    cout << "_matching_regions_order: " << endl;
-    for(auto &v: _matching_regions_order)
+    vector<vector<int>> matching_regions_order = getMatchingRegions(spanning_tree);
+    cout << "matching_regions_order: " << endl;
+    for(auto &v: matching_regions_order)
     {
         cout << "{";
         for(auto vv: v)
@@ -892,16 +884,109 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTreeWrapper(const Graph &
     }
     cout << endl;
 
-    return findOrderedSubgraphsSpanningTree(
-        g, h, criteria, spanning_tree, sp_tree_range_edges, limit, delta);
+
+    long long int sum_results = 0;
+    // prepare omp
+    vector<GraphSearch *> searches;
+    vector<long long int > results;
+    for (int i = 0; i < num_of_threads * partition_per_thread; i++)
+    {
+        searches.push_back(new GraphSearch());
+        results.push_back(0);
+    }
+    vector<int> start_index_vec;
+    vector<int> end_index_vec;
+    for (int i = 0; i < num_of_threads * partition_per_thread; i++)
+    {
+        int start_index = int(g.numEdges() * 1.0 * i / (num_of_threads * partition_per_thread));
+        int end_index = int(g.numEdges() * 1.0 * (i + 1) / (num_of_threads * partition_per_thread));
+        while (start_index > 0 && start_index < g.numEdges() && g.edges()[start_index - 1].source() == g.edges()[start_index - 1].dest())
+        {
+            start_index++;
+        }
+        while (end_index > 0 && end_index < g.numEdges() && g.edges()[end_index - 1].source() == g.edges()[end_index - 1].dest())
+        {
+            end_index++;
+        }
+        start_index_vec.push_back(start_index);
+        end_index_vec.push_back(end_index);
+    }
+    double avg_time;
+    #pragma omp parallel for schedule(dynamic, 1)
+    for (int i = 0; i < num_of_threads * partition_per_thread; i++)
+    {
+        results[i] = searches[i]->findOrderedSubgraphsSpanningTreeInner(
+            start_index_vec[i], end_index_vec[i], g, h, criteria, 
+            spanning_tree, sp_tree_range_edges, matching_regions_order,
+            limit, delta);
+    }
+    for (int i = 0; i < num_of_threads * partition_per_thread; i++)
+    {
+        // cout << i << " results[i]: " << results[i] << endl;
+        sum_results += (results[i]);
+    }
+    for (int i = 0; i < num_of_threads * partition_per_thread; i++)
+    {
+        delete searches[i];
+    }
+    return sum_results;
+
 }
 
 long long int GraphSearch::findOrderedSubgraphsSpanningTree(
     const Graph &g, const Graph &h, const MatchCriteria &criteria,
-    const vector<int> &spanning_tree, const map<pair<int, int>, vector<int>> sp_tree_range_edges,
+    const vector<int> &spanning_tree, long long int limit, int delta)
+{
+    // store the lower and upperbound respect to spanning tree edges of the extra edges that are not in the spanning tree
+    // SPTreeRangeEdges: (SPtree edge_id 1, SPtree edge_id 2, vector<int> h_edge_ids of extra edges)
+    // the edges in the vector<int> have the index range of (SPtree edge_id 1, SPtree edge_id 2)
+    // edges with same range are counted by n-pointer technique (linear time complexity)
+    map<pair<int, int>, vector<int>> sp_tree_range_edges = analyze_exatra_edges(h, spanning_tree);
+    cout << "sp_tree_range_edges: " << endl;
+    for(auto &[k, vs]: sp_tree_range_edges)
+    {
+        cout << "[ " << k.first << "," << k.second << " ] : ";
+        for(auto v: vs)
+        {
+            cout << v << ", ";
+        }
+        cout << endl;
+    }
+    // split the spanning_tree into non-deceasing sublist
+    // For example, given matching order as {1, 2, 3, 0}, return value is {{1, 2, 3}, {0}}.
+    vector<vector<int>> matching_regions_order = getMatchingRegions(spanning_tree);
+    cout << "matching_regions_order: " << endl;
+    for(auto &v: matching_regions_order)
+    {
+        cout << "{";
+        for(auto vv: v)
+        {
+            cout << vv << ", ";
+        }
+        cout << "},";
+    }
+    cout << endl;
+    return findOrderedSubgraphsSpanningTreeInner(
+        0, g.numEdges(), g, h, criteria, spanning_tree, sp_tree_range_edges, matching_regions_order, limit, delta);
+}
+
+long long int GraphSearch::findOrderedSubgraphsSpanningTreeInner(
+    int start_edge_idx, int end_edge_idx,
+    const Graph &g, const Graph &h, const MatchCriteria &criteria,
+    const vector<int> &spanning_tree, const map<pair<int, int>, vector<int>>& sp_tree_range_edges,
+    const vector<vector<int>>& matching_regions_order,
     long long int limit, int delta)
 {
-    
+
+    /*
+    spanning_tree are the list of edges in motif h that selected to be the spanning tree
+    */
+    // Store class data structures
+    _g = &g;
+    _h = &h;
+    _criteria = &criteria;
+    _delta = delta;
+    _matching_regions_order = matching_regions_order;
 
     bool debugOutput = false;
 
@@ -919,7 +1004,7 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTree(
     // Tables for mapping nodes and edges between the two graphs
     // -1 means no match has been assigned yet
     _h2gNodes.clear();
-    _h2gNodes.resize(h.numNodes(), -1);
+    _h2gNodes.resize(_h->numNodes(), -1);
     _g2hNodes.clear();
     _g2hNodes.resize(n, -1);
 
@@ -949,7 +1034,7 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTree(
     // The edge from H we are trying to match in G
     int h_i = _matching_regions_order[_region_i][_matching_h_i];
     // The current edge from G we are testing out (yes, should start at -1)
-    int g_i = 0;
+    int g_i = start_edge_idx;
 
     // upper bounds to see if we've run out of edges in the current level of DFS search tree
     _upper_id = _g->numEdges();
@@ -961,7 +1046,7 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTree(
 
         // If we've run out of edges, we need to pop the last edge used,
         // and start the search back at the edge after that one
-        while ((g_i >= _upper_id) || (_sg_edgeStack.empty() == false && g.edges()[g_i].time() > _upper_time))
+        while ((g_i >= end_edge_idx) || (_sg_edgeStack.empty() == false && _g->edges()[g_i].time() > _upper_time))
         {
             // If the edge stack is empty, then we have no options left
             // and need to give up.
@@ -1032,19 +1117,14 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTree(
 
                 dfs_edges[h_edge.index()] = g_edge;
 
-                // Map the nodes from each graph
-                _h2gNodes[h_u] = g_u;
-                _h2gNodes[h_v] = g_v;
-                _g2hNodes[g_u] = h_u;
-                _g2hNodes[g_v] = h_v;
-
-                // Increment number of search edges for each node in our G edge
-                _numSearchEdgesForNode[g_u]++;
-                _numSearchEdgesForNode[g_v]++;
+                // Map the nodes from each graph, adding the last edge
+                vector<int> h2gNodes = _h2gNodes; // a copy of _h2gNodes
+                h2gNodes[h_u] = g_u;
+                h2gNodes[h_v] = g_v;
 
                 // after the first few levels (spanning tree chosen) of DFS, we can start to count the number of subgraphs that extended
                 // from the the selected spanning tree by using pointer technique
-                results += deriveMotifCounts(dfs_edges, spanning_tree, sp_tree_range_edges, _h2gNodes);
+                results += deriveMotifCounts(dfs_edges, spanning_tree, sp_tree_range_edges, h2gNodes);
 
                 g_i++;
 
@@ -1173,6 +1253,7 @@ void GraphSearch::decreNextEdge()
     if (_matching_h_i == 0)
     {
         // clear current level's matching region info
+        delete(_matching_regions_info.back());
         _matching_regions_info.pop_back();
     }
 }
@@ -1326,7 +1407,7 @@ long long int GraphSearch::count_stars_multi_thread(
 
 bool GraphSearch::sample_directed_3path(
     int edge_id, vector<vector<vector<int>::const_iterator>>& sampling_neigh_edges_it,
-    std::vector<Edge>& sampled_edges, vector<long long int>& failure)
+    vector<Edge>& sampled_edges, vector<long long int>& failure)
 {
     unsigned int seed = time(NULL) ^ omp_get_thread_num();
     sampled_edges.clear();
@@ -3179,13 +3260,13 @@ vector<Dependency> GraphSearch::analyze_spanning_tree(vector<vector<int>>& spann
     return dep_edges;
 }
 
-map<pair<int, int>, vector<int>> GraphSearch::analyze_exatra_edges(const vector<int>& flattened_spanning_tree)
+map<pair<int, int>, vector<int>> GraphSearch::analyze_exatra_edges(const Graph &h, const vector<int>& flattened_spanning_tree)
 {
     map<pair<int, int>, vector<int>> hash;
     vector<int> extra_edges; // extra edges in h that are not in the spanning tree
     int sp_idx = 0;
     int h_idx = 0;
-    while(h_idx < _h->numEdges())
+    while(h_idx < h.numEdges())
     {
         if (sp_idx < flattened_spanning_tree.size() && flattened_spanning_tree[sp_idx] == h_idx)
         {
@@ -4004,7 +4085,7 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
     // SPTreeRangeEdges: (SPtree edge_id 1, SPtree edge_id 2, vector<int> h_edge_ids of extra edges)
     // the edges in the vector<int> have the index range of (SPtree edge_id 1, SPtree edge_id 2)
     // edges with same range are counted by n-pointer technique (linear time complexity)
-    map<pair<int, int>, vector<int>> sp_tree_range_edges = analyze_exatra_edges(flattened_spanning_tree); 
+    map<pair<int, int>, vector<int>> sp_tree_range_edges = analyze_exatra_edges(h, flattened_spanning_tree); 
     cout << "sp_tree_range_edges: " << endl;
     for(auto &[k, vs]: sp_tree_range_edges)
     {

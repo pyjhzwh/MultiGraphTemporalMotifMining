@@ -82,6 +82,8 @@ public:
         return _edge_in_mult_out; };
 
     void computeSigmaDelta(int delta, int* sigma_max, float* sigma_avg);
+
+    void forceUpdateOrderedEdges() const;
     // std::vector<int> & src_dst() const {
     //     if(!_edgesReady)
     //     {
