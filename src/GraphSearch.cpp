@@ -1046,13 +1046,16 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTreeInner(
 
         // If we've run out of edges, we need to pop the last edge used,
         // and start the search back at the edge after that one
-        while ((g_i >= end_edge_idx) || (_sg_edgeStack.empty() == false && _g->edges()[g_i].time() > _upper_time))
+        while ((g_i >= _upper_id) || _sg_edgeStack.empty() || (_sg_edgeStack.empty() == false && _g->edges()[g_i].time() > _upper_time))
         {
             // If the edge stack is empty, then we have no options left
             // and need to give up.
             if (_sg_edgeStack.empty())
             {
-                return results;
+                if (g_i >= end_edge_idx)
+                    return results;
+                else
+                    break;
             }
 
             // Pop the stack
