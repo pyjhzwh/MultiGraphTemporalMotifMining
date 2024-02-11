@@ -919,7 +919,7 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTreeMultiThread(
     {
         results[i] = searches[i]->findOrderedSubgraphsSpanningTreeInner(
             start_index_vec[i], end_index_vec[i], g, h, criteria, 
-            spanning_tree, sp_tree_range_edges, matching_regions_order,
+            sorted_spanning_tree, sp_tree_range_edges, matching_regions_order,
             limit, delta);
     }
     for (int i = 0; i < num_of_threads * partition_per_thread; i++)
@@ -971,7 +971,7 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTree(
     }
     cout << endl;
     return findOrderedSubgraphsSpanningTreeInner(
-        0, g.numEdges(), g, h, criteria, spanning_tree, sp_tree_range_edges, matching_regions_order, limit, delta);
+        0, g.numEdges(), g, h, criteria, sorted_spanning_tree, sp_tree_range_edges, matching_regions_order, limit, delta);
 }
 
 long long int GraphSearch::findOrderedSubgraphsSpanningTreeInner(
@@ -3748,6 +3748,12 @@ long long int GraphSearch::countSortedPairs(
     */
     long long int cnt = 0;
     int list_num = search_edges_left_its.size();
+    // in case left iterator is already greater than right iterator
+    for(int i = 0; i < list_num; i++)
+    {
+        if (distance(search_edges_left_its[i], search_edges_right_its[i]) <= 0)
+            return 0;
+    }
     // base case: only one list
     // distance of two binary searches to count the number of motif instances
     if (list_num == 1)
@@ -3935,71 +3941,6 @@ long long int GraphSearch::deriveMotifCounts(
             search_edges_left_its.push_back(search_edges_left_it);
             search_edges_right_its.push_back(search_edges_right_it);
         }
-        /*
-        long long int cur_range_cnts = 0;
-        if (extra_edges.size() == 1)
-        {
-            // distance of two binary searches to count the number of motif instances
-            cur_range_cnts = distance(search_edges_left_its[0], search_edges_right_its[0]);
-        }
-        else
-        {
-            // two-pointer technique to count the number of motif instances
-            // move iteration from left to right to maintain the relative temporal ordering of extra edges
-            vector<vector<int>::const_iterator> search_edges_its(search_edges_left_its.size());
-            for(int i = 0; i < search_edges_left_its.size(); i++)
-            {
-                // iterate from left to right
-                search_edges_its[i] = search_edges_left_its[i];
-            }
-            if (extra_edges.size() == 2)
-            {
-                while(
-                    (search_edges_its[0] != search_edges_right_its[0]) &&
-                    (search_edges_its[1] != search_edges_right_its[1])
-                )
-                {
-                    // keep moving search_edges_its[1] to right until it > search_edges_its[0]
-                    if (*search_edges_its[1] <= *search_edges_its[0])
-                    {
-                        search_edges_its[1]++;
-                    }
-                    else
-                    {
-                        // all other extra edges must > previous edge index
-                        cur_range_cnts += distance(search_edges_its[1], search_edges_right_its[1]);
-                        // update search_edges_its[0]
-                        search_edges_its[0]++;
-                    }
-                }
-            }
-            else if (extra_edges.size() == 3)
-            {
-                // use 3-pointer technique to count the number of motif instances
-                // anchor on the second extra edge
-                for(; search_edges_its[1] != search_edges_right_its[1]; search_edges_its[1]++)
-                {
-                    // keep moving search_edges_its[0] to right until it >= search_edges_its[1]
-                    while(search_edges_its[0] != search_edges_right_its[0] && *search_edges_its[0] < *search_edges_its[1])
-                    {
-                        search_edges_its[0]++;
-                    }
-                    // keep moving search_edges_its[2] to right until it > search_edges_its[1]
-                    while(search_edges_its[2] != search_edges_right_its[2] && *search_edges_its[2] <= *search_edges_its[1])
-                    {
-                        search_edges_its[2]++;
-                    }
-                    int num_edegs_0 = distance(search_edges_left_its[0], search_edges_its[0]);
-                    int num_edges_2 = distance(search_edges_its[2], search_edges_right_its[2]);
-                    cur_range_cnts += num_edegs_0 * num_edges_2;
-                }
-            }
-            else
-            {
-                cout << "Do not support > 3 extra edges that has the same range respect to spannin tree in motif" << endl;
-            }
-        }
-        */
         long long int cur_range_cnts = countSortedPairs(search_edges_left_its, search_edges_right_its);
         motif_cnt *= cur_range_cnts;
         if (motif_cnt == 0) // early terminate if no motif instance
