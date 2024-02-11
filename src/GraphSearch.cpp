@@ -858,7 +858,9 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTreeMultiThread(
     // SPTreeRangeEdges: (SPtree edge_id 1, SPtree edge_id 2, vector<int> h_edge_ids of extra edges)
     // the edges in the vector<int> have the index range of (SPtree edge_id 1, SPtree edge_id 2)
     // edges with same range are counted by n-pointer technique (linear time complexity)
-    map<pair<int, int>, vector<int>> sp_tree_range_edges = analyze_exatra_edges(h, spanning_tree);
+    vector<int> sorted_spanning_tree = spanning_tree;
+    sort(sorted_spanning_tree.begin(), sorted_spanning_tree.end());
+    map<pair<int, int>, vector<int>> sp_tree_range_edges = analyze_exatra_edges(h, sorted_spanning_tree);
     cout << "sp_tree_range_edges: " << endl;
     for(auto &[k, vs]: sp_tree_range_edges)
     {
@@ -941,7 +943,9 @@ long long int GraphSearch::findOrderedSubgraphsSpanningTree(
     // SPTreeRangeEdges: (SPtree edge_id 1, SPtree edge_id 2, vector<int> h_edge_ids of extra edges)
     // the edges in the vector<int> have the index range of (SPtree edge_id 1, SPtree edge_id 2)
     // edges with same range are counted by n-pointer technique (linear time complexity)
-    map<pair<int, int>, vector<int>> sp_tree_range_edges = analyze_exatra_edges(h, spanning_tree);
+    vector<int> sorted_spanning_tree = spanning_tree;
+    sort(sorted_spanning_tree.begin(), sorted_spanning_tree.end());
+    map<pair<int, int>, vector<int>> sp_tree_range_edges = analyze_exatra_edges(h, sorted_spanning_tree);
     cout << "sp_tree_range_edges: " << endl;
     for(auto &[k, vs]: sp_tree_range_edges)
     {
@@ -1199,7 +1203,7 @@ vector<vector<int>> GraphSearch::getMatchingRegions(const vector<int> &matching_
         return regions;
     for (int i = 0; i < matching_order.size(); i++)
     {
-        if ((region.size() != 0) && (matching_order[i] < matching_order[i - 1]))
+        if ((region.size() != 0) && (matching_order[i] != matching_order[i - 1] + 1))
         {
             regions.push_back(region);
             region.clear();
