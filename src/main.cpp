@@ -232,8 +232,8 @@ int main(int argc, char **argv)
                 long long int results;
                 Timer t;
                 double avg_time = 0;
-                vector<int> spanning_tree = {0, 4};
                 t.Start();
+                vector<int> spanning_tree = search.analyzeSPTreeBT(h);
                 if (num_of_threads > 1)
                     results = search.findOrderedSubgraphsSpanningTreeMultiThread(g, h, criteria, spanning_tree, limit, delta, num_of_threads, PARTITION_PER_THREAD);
                 else
