@@ -399,6 +399,14 @@ public:
         std::vector<std::vector<int>::const_iterator> search_edges_left_its,
         std::vector<std::vector<int>::const_iterator> search_edges_right_its);
 
+
+    void DFSUtil(const Graph &h,
+        int node_id, std::vector<bool>& visited, std::vector<int>& currentTree,
+        std::vector<std::vector<int>>& allSpanningTrees);
+    std::vector<int> analyzeSPTreeBT(const Graph& h);
+
+    int getLeastImbalanceSPTree(const std::vector<std::vector<int>>& allSpanningTrees, int numEdges);
+
 private:
     /** Creates map of which nodes in G can map to the nodes we are searching for from H */
     std::vector<std::unordered_set<int>> mapPossibleNodes();

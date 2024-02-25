@@ -59,6 +59,107 @@ vector<int> GraphSearch::random_select_n(vector<int>& list, size_t num_random, m
     return result;
 }
 
+void GraphSearch::DFSUtil(const Graph &h,
+    int node_id, // current node id to be visited
+    vector<bool>& visited, vector<int>& currentTree,
+    vector<vector<int>>& allSpanningTrees)
+{
+    visited[node_id] = true;
+    for(int e_id: h.nodes()[node_id].edges()) // edges that incident to node_id
+    {
+        const Edge& e = h.edges()[e_id];
+        int next_node_id = e.source() == node_id ? e.dest() : e.source();
+        if(!visited[next_node_id])
+        {
+            currentTree.push_back(e_id);
+            // must contain the edge 0
+            if (currentTree.size() == h.numNodes() - 1 && find(currentTree.begin(), currentTree.end(), 0) != currentTree.end())
+            {
+                allSpanningTrees.push_back(currentTree);
+            }
+            else
+            {
+                DFSUtil(h, next_node_id, visited, currentTree, allSpanningTrees);
+            }
+            currentTree.pop_back();
+        }
+    }
+    visited[node_id] = false;
+}
+
+int GraphSearch::getLeastImbalanceSPTree(const vector<vector<int>>& allSpanningTrees, int numEdges)
+{
+    int minImbalance = INT_MAX;
+    int minIncreRegion = INT_MAX;
+    int best_idx = -1;
+    for(int j = 0; j < allSpanningTrees.size(); j++)
+    {
+        int increRegion = 0;
+        for(int i = 1 ; i < allSpanningTrees[j].size(); i++) // we prefer the tree with less increase region
+        {
+            if (allSpanningTrees[j][i] - allSpanningTrees[j][i-1] < 0)
+            {
+                increRegion++;
+            }
+        }
+        int minDiff = numEdges;
+        int maxDiff = 0;
+        vector<int> sorted_tree = allSpanningTrees[j];
+        std::sort(sorted_tree.begin(), sorted_tree.end()); // Fix: Specify the namespace for the sort function
+        for(int i = 1; i < sorted_tree.size(); i++)
+        {
+            int diff = sorted_tree[i] - sorted_tree[i-1] - 1;
+            minDiff = std::min(minDiff, diff);
+            maxDiff = std::max(maxDiff, diff);
+        }
+        if (sorted_tree[sorted_tree.size()-1] != numEdges - 1) // last region
+        {
+            int diff = numEdges - 1 - sorted_tree[sorted_tree.size()-1];
+            minDiff = std::min(minDiff, diff);
+            maxDiff = std::max(maxDiff, diff);
+        }
+        int imba = maxDiff - minDiff;
+        if (imba < minImbalance || (imba == minImbalance && increRegion < minIncreRegion))
+        {
+            minImbalance = imba;
+            minIncreRegion = increRegion;
+            best_idx = j;
+        }
+    }
+    return best_idx;
+}
+
+vector<int> GraphSearch::analyzeSPTreeBT(const Graph& h)
+{
+    vector<vector<int>> allSpanningTrees;
+    vector<bool> visited(h.numNodes(), false);
+    vector<int> currentTree;
+    // // always choose edge 0
+    // // mark two end nodes of edge[0] visited
+    // visited[h.edges()[0].source()] = true;
+    // // visited[h.edges()[0].dest()] = true;
+    // currentTree.push_back(0);
+    
+    for(int i = 0; i < h.numNodes(); i++)
+    {
+        DFSUtil(h, i, visited, currentTree, allSpanningTrees);
+    }
+
+    // get best spannin tree so the edges span the edge list almost evenly
+    int best_sptree_idx = getLeastImbalanceSPTree(allSpanningTrees, h.numEdges());
+
+    // print the best spanning tree
+    cout << "Choose spanning tree: ";
+    for(auto e_id: allSpanningTrees[best_sptree_idx])
+    {
+        cout << e_id << ", ";
+    }
+    cout << endl;
+    // return the best spanning tree
+    return allSpanningTrees[best_sptree_idx];
+
+}
+
 vector<GraphMatch> GraphSearch::findAllSubgraphs(const Graph &g, const Graph &h, long long int limit)
 {
     // If no criteria specified, just use the "dummy" criteria, that accepts everything.
