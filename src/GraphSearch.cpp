@@ -88,20 +88,25 @@ void GraphSearch::DFSUtil(const Graph &h,
     visited[node_id] = false;
 }
 
-int GraphSearch::getLeastImbalanceSPTree(const vector<vector<int>>& allSpanningTrees, int numEdges)
+void GraphSearch::getStatsSPTree(
+    const vector<vector<int>>& allSpanningTrees, int numEdges,
+    vector<int>& imbalances, vector<int>& increRegions, vector<int>& absDiffSums)
 {
-    int minImbalance = INT_MAX;
-    int minIncreRegion = INT_MAX;
+    imbalances.resize(allSpanningTrees.size());
+    increRegions.resize(allSpanningTrees.size());
+    absDiffSums.resize(allSpanningTrees.size());
     int best_idx = -1;
     for(int j = 0; j < allSpanningTrees.size(); j++)
     {
         int increRegion = 0;
+        int absDiffSum = 0;
         for(int i = 1 ; i < allSpanningTrees[j].size(); i++) // we prefer the tree with less increase region
         {
             if (allSpanningTrees[j][i] - allSpanningTrees[j][i-1] < 0)
             {
                 increRegion++;
             }
+            absDiffSum += abs(allSpanningTrees[j][i] - allSpanningTrees[j][i-1] - 1);
         }
         int minDiff = numEdges;
         int maxDiff = 0;
@@ -117,14 +122,40 @@ int GraphSearch::getLeastImbalanceSPTree(const vector<vector<int>>& allSpanningT
             maxDiff = std::max(maxDiff, diff);
         }
         int imba = maxDiff - minDiff;
-        if (imba < minImbalance || (imba == minImbalance && increRegion < minIncreRegion))
-        {
-            minImbalance = imba;
-            minIncreRegion = increRegion;
-            best_idx = j;
-        }
+        imbalances[j] = imba;
+        increRegions[j] = increRegion;
+        absDiffSums[j] = absDiffSum;
     }
-    return best_idx;
+    return;
+}
+
+
+int GraphSearch::getBestSPTree(const vector<int>& imbalances, const vector<int>& increRegions, const vector<int>& absDiffSums)
+{
+    // int minImbalance = INT_MAX;
+    // int minIncreRegion = INT_MAX;
+    // int minabsDiffSum = INT_MAX;
+    // int best_idx = -1;
+    // for(int j = 0; j < imbalances.size(); j++)
+    // {
+    //     if (imbalances[j] < minImbalance
+    //         || (imbalances[j] == minImbalance && increRegions[j] < minIncreRegion)
+    //         || (imbalances[j] == minImbalance && increRegions[j] == minIncreRegion && absDiffSums[j] < minabsDiffSum))
+    //     {
+    //         minImbalance = imbalances[j];
+    //         minIncreRegion = increRegions[j];
+    //         minabsDiffSum = absDiffSums[j];
+    //         best_idx = j;
+    //     }
+    // }
+    // return best_idx;
+    vector<float> scores(imbalances.size(), 0);
+    for(int i = 0; i < imbalances.size(); i++)
+    {
+        
+        scores[i] = imbalances[i] + increRegions[i] * 1.5 + absDiffSums[i] * 0.2;
+    }
+    return std::min_element(scores.begin(), scores.end()) - scores.begin();
 }
 
 vector<int> GraphSearch::analyzeSPTreeBT(const Graph& h)
@@ -139,7 +170,11 @@ vector<int> GraphSearch::analyzeSPTreeBT(const Graph& h)
     }
 
     // get best spannin tree so the edges span the edge list almost evenly
-    int best_sptree_idx = getLeastImbalanceSPTree(allSpanningTrees, h.numEdges());
+    vector<int> imbalances;
+    vector<int> increRegions;
+    vector<int> absDiffSums;
+    getStatsSPTree(allSpanningTrees, h.numEdges(), imbalances, increRegions, absDiffSums);
+    int best_sptree_idx = getBestSPTree(imbalances, increRegions, absDiffSums);
 
     // print the best spanning tree
     cout << "Choose spanning tree: ";
@@ -165,7 +200,11 @@ vector<vector<int>> GraphSearch::analyzeSPTreeSample(const Graph& h)
     }
 
     // get best spannin tree so the edges span the edge list almost evenly
-    int best_sptree_idx = getLeastImbalanceSPTree(allSpanningTrees, h.numEdges());
+    vector<int> imbalances;
+    vector<int> increRegions;
+    vector<int> absDiffSums;
+    getStatsSPTree(allSpanningTrees, h.numEdges(), imbalances, increRegions, absDiffSums);
+    int best_sptree_idx = getBestSPTree(imbalances, increRegions, absDiffSums);
 
     vector<int>& best_sptree = allSpanningTrees[best_sptree_idx];
     // get the ordering of preprocessing

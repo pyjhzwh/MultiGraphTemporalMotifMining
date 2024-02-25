@@ -405,7 +405,11 @@ public:
         std::vector<std::vector<int>>& allSpanningTrees);
     
 
-    int getLeastImbalanceSPTree(const std::vector<std::vector<int>>& allSpanningTrees, int numEdges);
+    // int getLeastImbalanceSPTree(const std::vector<std::vector<int>>& allSpanningTrees, int numEdges);
+    void getStatsSPTree(const std::vector<std::vector<int>>& allSpanningTrees, int numEdges,
+        std::vector<int>& imbalances, std::vector<int>& increRegions, std::vector<int>& absDiffSums);
+
+    int getBestSPTree(const std::vector<int>& imbalances, const std::vector<int>& increRegions, const std::vector<int>& absDiffSums);
 
     std::vector<int> analyzeSPTreeBT(const Graph& h);
 
