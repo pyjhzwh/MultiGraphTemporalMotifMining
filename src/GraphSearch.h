@@ -403,9 +403,13 @@ public:
     void DFSUtil(const Graph &h,
         int node_id, std::vector<bool>& visited, std::vector<int>& currentTree,
         std::vector<std::vector<int>>& allSpanningTrees);
-    std::vector<int> analyzeSPTreeBT(const Graph& h);
+    
 
     int getLeastImbalanceSPTree(const std::vector<std::vector<int>>& allSpanningTrees, int numEdges);
+
+    std::vector<int> analyzeSPTreeBT(const Graph& h);
+
+    std::vector<std::vector<int>> analyzeSPTreeSample(const Graph& h);
 
 private:
     /** Creates map of which nodes in G can map to the nodes we are searching for from H */

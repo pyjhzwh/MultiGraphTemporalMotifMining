@@ -16,6 +16,7 @@
 #include "timer.h"
 #include <iostream>
 #include <fstream>
+#include <queue>
 
 // #define SAVE_SEARCH_TREE
 #define MAX_ST_CNT 1000
@@ -105,16 +106,13 @@ int GraphSearch::getLeastImbalanceSPTree(const vector<vector<int>>& allSpanningT
         int minDiff = numEdges;
         int maxDiff = 0;
         vector<int> sorted_tree = allSpanningTrees[j];
-        std::sort(sorted_tree.begin(), sorted_tree.end()); // Fix: Specify the namespace for the sort function
+        std::sort(sorted_tree.begin(), sorted_tree.end());
+        sorted_tree.push_back(numEdges - 1);
         for(int i = 1; i < sorted_tree.size(); i++)
         {
             int diff = sorted_tree[i] - sorted_tree[i-1] - 1;
-            minDiff = std::min(minDiff, diff);
-            maxDiff = std::max(maxDiff, diff);
-        }
-        if (sorted_tree[sorted_tree.size()-1] != numEdges - 1) // last region
-        {
-            int diff = numEdges - 1 - sorted_tree[sorted_tree.size()-1];
+            if (diff < 0)
+                continue;
             minDiff = std::min(minDiff, diff);
             maxDiff = std::max(maxDiff, diff);
         }
@@ -134,11 +132,6 @@ vector<int> GraphSearch::analyzeSPTreeBT(const Graph& h)
     vector<vector<int>> allSpanningTrees;
     vector<bool> visited(h.numNodes(), false);
     vector<int> currentTree;
-    // // always choose edge 0
-    // // mark two end nodes of edge[0] visited
-    // visited[h.edges()[0].source()] = true;
-    // // visited[h.edges()[0].dest()] = true;
-    // currentTree.push_back(0);
     
     for(int i = 0; i < h.numNodes(); i++)
     {
@@ -157,6 +150,102 @@ vector<int> GraphSearch::analyzeSPTreeBT(const Graph& h)
     cout << endl;
     // return the best spanning tree
     return allSpanningTrees[best_sptree_idx];
+
+}
+
+vector<vector<int>> GraphSearch::analyzeSPTreeSample(const Graph& h)
+{
+    vector<vector<int>> allSpanningTrees;
+    vector<bool> visited(h.numNodes(), false);
+    vector<int> currentTree;
+    
+    for(int i = 0; i < h.numNodes(); i++)
+    {
+        DFSUtil(h, i, visited, currentTree, allSpanningTrees);
+    }
+
+    // get best spannin tree so the edges span the edge list almost evenly
+    int best_sptree_idx = getLeastImbalanceSPTree(allSpanningTrees, h.numEdges());
+
+    vector<int>& best_sptree = allSpanningTrees[best_sptree_idx];
+    // get the ordering of preprocessing
+    // topological sort , where we treat edge as node, and node as edge
+    vector<int> degree(h.numNodes(), 0);
+    for(int e_id: best_sptree)
+    {
+        const Edge& e = h.edges()[e_id];
+        degree[e.source()]++;
+        degree[e.dest()]++;
+    }
+    vector<int> remaining_edges = best_sptree;
+    // find zero degree nodes and find the corresponding edges, then push to a queue
+    queue<int> q;
+    for(int e_id: best_sptree)
+    {
+        const Edge& e = h.edges()[e_id];
+        if (degree[e.source()] == 1 || degree[e.dest()] == 1)
+        {
+            q.push(e.index());
+            remaining_edges.erase(std::remove(remaining_edges.begin(), remaining_edges.end(), e.index()), remaining_edges.end());
+        }
+    }
+    vector<vector<int>> topo_order;
+    while(!q.empty()) //TODO: only one center edge...
+    {
+        int size = q.size();
+        vector<int> cur_level;
+        while(size--!=0)
+        {
+            int e_id = q.front();
+            q.pop();
+            cur_level.push_back(e_id);
+            const Edge& e = h.edges()[e_id];
+            degree[e.source()]--;
+            degree[e.dest()]--;
+            // find the edge in spanning tree whose degree becomes 1 and push to queue
+            for(int e_id: remaining_edges)
+            {
+                const Edge& e = h.edges()[e_id];
+                if (degree[e.source()] == 1 || degree[e.dest()] == 1)
+                {
+                    q.push(e.index());
+                    remaining_edges.erase(std::remove(remaining_edges.begin(), remaining_edges.end(), e_id), remaining_edges.end());
+                }
+            }
+        }
+        topo_order.push_back(cur_level);
+    }
+    // make sure that the  last level has only one center edge;
+    // if not, we need to move one center edge to the new level
+    if (topo_order.back().size() > 1)
+    {
+        int last_level_size = topo_order.back().size();
+        int center_edge = topo_order.back()[last_level_size - 1];
+        topo_order.back().pop_back();
+        topo_order.push_back(vector<int>{center_edge});
+    }
+
+    // print the best spanning tree
+    cout << "Choose spanning tree: ";
+    for(auto e_id: allSpanningTrees[best_sptree_idx])
+    {
+        cout << e_id << ", ";
+    }
+    cout << endl;
+    // print the topo order
+    cout << "Choose spanning tree: ";
+    for(auto level: topo_order)
+    {
+        cout << "{";
+        for(auto e_id: level)
+        {
+            cout << e_id << ", ";
+        }
+        cout << "}, ";
+    }
+    cout << endl;
+    // return the best spanning tree
+    return topo_order;
 
 }
 
