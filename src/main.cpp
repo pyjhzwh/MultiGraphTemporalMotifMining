@@ -51,49 +51,50 @@ int main(int argc, char **argv)
 
             cout << "Searching for query graph in larger data graph" << endl;
         }
-        if(algo == 0)
+        
+        // Try each of the requested query graphs
+        for (int i = 0; i < args.queryFnames().size(); i++)
         {
-            // Try each of the requested query graphs
-            for (int i = 0; i < args.queryFnames().size(); i++)
+            const string &queryFname = args.queryFnames()[i];
+            if (args.verbose())
+                cout << "Loading query graph from " << queryFname << endl;
+            DataGraph h;
+            h = FileIO::loadGenericGDF(queryFname);
+            if (args.verbose())
             {
-                const string &queryFname = args.queryFnames()[i];
-                if (args.verbose())
-                    cout << "Loading query graph from " << queryFname << endl;
-                DataGraph h;
-                h = FileIO::loadGenericGDF(queryFname);
-                if (args.verbose())
-                {
+                h.disp();
+                cout << h.nodes().size() << " nodes, " << h.edges().size() << " edges" << endl;
+                if (h.numEdges() < MAX_NUM_EDGES_FOR_DISP)
                     h.disp();
-                    cout << h.nodes().size() << " nodes, " << h.edges().size() << " edges" << endl;
-                    if (h.numEdges() < MAX_NUM_EDGES_FOR_DISP)
-                        h.disp();
-                    cout << endl;
-                }
+                cout << endl;
+            }
 
-                if (h.nodeAttributesDef() != g.nodeAttributesDef())
-                    throw "Node attribute definitions don't match between the query graph and data graph.";
-                if (h.edgeAttributesDef() != h.edgeAttributesDef())
-                    throw "Edge attribute definitionsgit p don't match between the query graph and data graph.";
+            if (h.nodeAttributesDef() != g.nodeAttributesDef())
+                throw "Node attribute definitions don't match between the query graph and data graph.";
+            if (h.edgeAttributesDef() != h.edgeAttributesDef())
+                throw "Edge attribute definitionsgit p don't match between the query graph and data graph.";
 
-                MatchCriteria_DataGraph criteria;
-                if (args.verbose())
-                    cout << "Filtering data graph to improve query performance." << endl;
-                DataGraph g2;
-                g2.setNodeAttributesDef(g.nodeAttributesDef());
-                g2.setEdgeAttributesDef(g.edgeAttributesDef());
-                GraphFilter::filter(g, h, criteria, g2);
-                int num_of_threads = args.num_of_threads;
-                if (num_of_threads * PARTITION_PER_THREAD > g2.edges().size())
-                {
-                    num_of_threads = 1;
-                }
-                cout << "Running in " << num_of_threads << " threads" << endl;
-                omp_set_num_threads(num_of_threads);
+            MatchCriteria_DataGraph criteria;
+            if (args.verbose())
+                cout << "Filtering data graph to improve query performance." << endl;
+            DataGraph g2;
+            g2.setNodeAttributesDef(g.nodeAttributesDef());
+            g2.setEdgeAttributesDef(g.edgeAttributesDef());
+            GraphFilter::filter(g, h, criteria, g2);
+            int num_of_threads = args.num_of_threads;
+            if (num_of_threads * PARTITION_PER_THREAD > g2.edges().size())
+            {
+                num_of_threads = 1;
+            }
+            cout << "Running in " << num_of_threads << " threads" << endl;
+            omp_set_num_threads(num_of_threads);
 
-                // Try each of the requested delta time restrictions
-                
-                GraphSearch search;
+            // Try each of the requested delta time restrictions
+            
+            GraphSearch search;
 
+            if(algo == 0)
+            {
                 cout << "========== Backtracking baseline ==========" << endl;
                 long long int results;
                 Timer t;
@@ -106,73 +107,10 @@ int main(int argc, char **argv)
                 t.Stop();
                 avg_time += t.Seconds();
                 cout << "count for " << queryFname << " : " << results << endl;
-                std::cout << "total time search.findOrderedSubgraphs (s) is: " << avg_time << " s." << std::endl;
+                std::cout << "BT runtime(s): " << avg_time << " s." << std::endl;
             }
-        }
-        else if (algo == 1)
-        {
-            GraphSearch search;
-            int num_of_threads = args.num_of_threads;
-            if (num_of_threads * PARTITION_PER_THREAD > g.edges().size())
+            else if (algo == 1)
             {
-                num_of_threads = 1;
-            }
-            cout << "Running in " << num_of_threads << " threads" << endl;
-            omp_set_num_threads(num_of_threads);
-            cout << "========== 112 5-node spanning tree sampling ==========" << endl;
-            const long long int max_trial = args.max_trial();
-            cout << "max_trial: " << max_trial << endl;
-            vector<float> results;
-            Timer t;
-            double avg_time = 0;
-            t.Start();
-            results = search.sixNodePathSample(g, spanning_tree_no, num_of_threads, PARTITION_PER_THREAD, delta, max_trial);
-            t.Stop();
-            avg_time += t.Seconds();
-            for (int i = 0; i < results.size(); i++)
-                cout << "M" << i << ": " << results[i] << ", ";
-            cout << endl;
-            std::cout << "total time searchPB.findOrderedSubgraphs (s) is: " << avg_time << " s." << std::endl;
-        }
-        else if (algo == 2)
-        {
-            // Try each of the requested query graphs
-            for (int i = 0; i < args.queryFnames().size(); i++)
-            {
-                const string &queryFname = args.queryFnames()[i];
-                if (args.verbose())
-                    cout << "Loading query graph from " << queryFname << endl;
-                DataGraph h;
-                h = FileIO::loadGenericGDF(queryFname);
-                if (args.verbose())
-                {
-                    h.disp();
-                    cout << h.nodes().size() << " nodes, " << h.edges().size() << " edges" << endl;
-                    if (h.numEdges() < MAX_NUM_EDGES_FOR_DISP)
-                        h.disp();
-                    cout << endl;
-                }
-
-                if (h.nodeAttributesDef() != g.nodeAttributesDef())
-                    throw "Node attribute definitions don't match between the query graph and data graph.";
-                if (h.edgeAttributesDef() != h.edgeAttributesDef())
-                    throw "Edge attribute definitionsgit p don't match between the query graph and data graph.";
-
-                MatchCriteria_DataGraph criteria;
-                if (args.verbose())
-                    cout << "Filtering data graph to improve query performance." << endl;
-                DataGraph g2;
-                g2.setNodeAttributesDef(g.nodeAttributesDef());
-                g2.setEdgeAttributesDef(g.edgeAttributesDef());
-                GraphFilter::filter(g, h, criteria, g2);
-                GraphSearch search;
-                int num_of_threads = args.num_of_threads;
-                if (num_of_threads * PARTITION_PER_THREAD > g2.edges().size())
-                {
-                    num_of_threads = 1;
-                }
-                cout << "Running in " << num_of_threads << " threads" << endl;
-                omp_set_num_threads(num_of_threads);
                 cout << "========== Spanning tree sampling ==========" << endl;
                 const long long int max_trial = args.max_trial();
                 cout << "max_trial: " << max_trial << endl;
@@ -186,48 +124,10 @@ int main(int argc, char **argv)
                 t.Stop();
                 avg_time += t.Seconds();
                 cout << "count for " << queryFname << " : " << results[0] << endl;
-                std::cout << "total time searchPB.findOrderedSubgraphs (s) is: " << avg_time << " s." << std::endl;
+                std::cout << "Sampling runtime(s): " << avg_time << " s." << std::endl;
             }
-        }
-        else if (algo == 3)
-        {
-            // Try each of the requested query graphs
-            for (int i = 0; i < args.queryFnames().size(); i++)
+            else if (algo == 2)
             {
-                const string &queryFname = args.queryFnames()[i];
-                if (args.verbose())
-                    cout << "Loading query graph from " << queryFname << endl;
-                DataGraph h;
-                h = FileIO::loadGenericGDF(queryFname);
-                if (args.verbose())
-                {
-                    h.disp();
-                    cout << h.nodes().size() << " nodes, " << h.edges().size() << " edges" << endl;
-                    if (h.numEdges() < MAX_NUM_EDGES_FOR_DISP)
-                        h.disp();
-                    cout << endl;
-                }
-
-                if (h.nodeAttributesDef() != g.nodeAttributesDef())
-                    throw "Node attribute definitions don't match between the query graph and data graph.";
-                if (h.edgeAttributesDef() != h.edgeAttributesDef())
-                    throw "Edge attribute definitionsgit p don't match between the query graph and data graph.";
-
-                g.forceUpdateOrderedEdges();
-                h.forceUpdateOrderedEdges();
-
-                MatchCriteria_DataGraph criteria;
-                if (args.verbose())
-                    cout << "Filtering data graph to improve query performance." << endl;
-
-                GraphSearch search;
-                int num_of_threads = args.num_of_threads;
-                if (num_of_threads * PARTITION_PER_THREAD > g.edges().size())
-                {
-                    num_of_threads = 1;
-                }
-                cout << "Running in " << num_of_threads << " threads" << endl;
-                omp_set_num_threads(num_of_threads);
                 cout << "========== DFS with pointer-technique (multi-graph motifs) ==========" << endl;
                 long long int results;
                 Timer t;
@@ -241,7 +141,7 @@ int main(int argc, char **argv)
                 t.Stop();
                 avg_time += t.Seconds();
                 cout << "count for " << queryFname << " : " << results << endl;
-                std::cout << "total time search (s) is: " << avg_time << " s." << std::endl;
+                std::cout << "BT+derivecnts runtime(s): " << avg_time << " s." << std::endl;
             }
         }
         
