@@ -173,19 +173,6 @@ public:
     void findOrderedSubgraphs(
         long long int *results, int start_edge_idx, int end_edge_idx,
         const Graph &g, const Graph &h, const MatchCriteria &criteria, long long int limit = LONG_LONG_MAX, int delta = INT_MAX);
-    
-    long long int count3Star(
-        const Graph &g, int num_of_threads, int partition_per_thread, int delta);
-
-
-    // three path sampling for M1 - M7
-    std::vector<float> threePathSample(
-        const Graph &g, int num_of_threads=1, int partition_per_thread=1,
-        int delta = INT_MAX, long long int max_trial = 2e5);
-
-    std::vector<long long int> threePathSampleAndCheckMotif(
-        long long int max_trial, std::discrete_distribution<>& edge_in_mult_out_weights,
-        std::vector<std::vector<std::vector<int>::const_iterator>>& sampling_neigh_edges_it);
 
     /**
      * Performs a subgraph search, in which the edge order does NOT matter,
@@ -220,123 +207,6 @@ public:
     bool out_of_range(time_t target, time_t left, time_t right);
     long long int preprocess_sampling_weights(
         std::vector<int>& sampling_weights, std::vector<std::vector<std::vector<int>::const_iterator>>& sampling_neigh_edges_it);
-
-    std::vector<float> sixNodePathSample(
-        const Graph &g, int spanning_tree_no=112, int num_of_threads=1, int partition_per_thread=1,
-        int delta = INT_MAX, long long int max_trial = 2e5);
-
-    long long int sixNode108PreprocessSamplingWeights(
-        std::vector<long long int>& e1_sampling_weights,
-        std::vector<long long int>& e2_sampling_weights,
-        std::vector<long long int>& e3_sampling_weights);
-
-    long long int sixNode109PreprocessSamplingWeights(
-        std::vector<long long int>& e1_sampling_weights,
-        std::vector<long long int>& e2_sampling_weights,
-        std::vector<long long int>& e3_sampling_weights);
-
-    long long int sixNode110PreprocessSamplingWeights(
-        std::vector<long long int>& e1_sampling_weights,
-        std::vector<long long int>& e2_sampling_weights,
-        std::vector<long long int>& e3_sampling_weights);
-
-    long long int sixNode111PreprocessSamplingWeights(
-        std::vector<long long int>& e1_sampling_weights,
-        std::vector<long long int>& e2_sampling_weights,
-        std::vector<long long int>& e3_sampling_weights);
-
-    long long int sixNode112PreprocessSamplingWeights(
-        std::vector<long long int>& e1_sampling_weights,
-        std::vector<long long int>& e2_sampling_weights,
-        std::vector<long long int>& e3_sampling_weights);
-    
-    std::vector<long long int> sixNodeSampleAndCheckMotif(
-        long long int max_trial,
-        int spanning_tree_no,
-        std::unique_ptr<std::discrete_distribution<>>& e_center_weight_distr,
-        std::vector<long long int>* e_left_sampling_weights,
-        std::vector<long long int>* e_right_sampling_weights
-        );
-
-    bool sample108(
-        int iter,
-        std::mt19937& eng,
-        std::unique_ptr<std::discrete_distribution<>>& e3_weights_distr,
-        std::vector<long long int>* ei_sampling_weights_ptr,
-        std::vector<long long int>* ej_sampling_weights_ptr,
-        std::vector<Edge>& sampled_edges
-        );
-
-    bool sample109(
-        int iter,
-        std::mt19937& eng,
-        std::unique_ptr<std::discrete_distribution<>>& e3_weights_distr,
-        std::vector<long long int>* ei_sampling_weights_ptr,
-        std::vector<long long int>* ej_sampling_weights_ptr,
-        std::vector<Edge>& sampled_edges
-        );
-
-    bool sample110(
-        int iter,
-        std::mt19937& eng,
-        std::unique_ptr<std::discrete_distribution<>>& e1_weights_distr,
-        std::vector<long long int>* ei_sampling_weights_ptr,
-        std::vector<long long int>* e2_sampling_weights_ptr,
-        std::vector<Edge>& sampled_edges
-        );
-
-    bool sample111(
-        int iter,
-        std::mt19937& eng,
-        std::unique_ptr<std::discrete_distribution<>>& e2_weights_distr,
-        std::vector<long long int>* ei_sampling_weights_ptr,
-        std::vector<long long int>* e3_sampling_weights_ptr,
-        std::vector<Edge>& sampled_edges
-        );
-
-    bool sample112(
-        int iter,
-        std::mt19937& eng,
-        std::unique_ptr<std::discrete_distribution<>>& e2_weights_distr,
-        std::vector<long long int>* e1_sampling_weights_ptr,
-        std::vector<long long int>* e3_sampling_weights_ptr,
-        std::vector<Edge>& sampled_edges
-        );
-
-    std::vector<long long int> check_motif108(std::vector<Edge> &sampled_edges);
-    std::vector<long long int> check_motif109(std::vector<Edge> &sampled_edges);
-    std::vector<long long int> check_motif110(std::vector<Edge> &sampled_edges);
-    std::vector<long long int> check_motif111(std::vector<Edge> &sampled_edges);
-    std::vector<long long int> check_motif112(std::vector<Edge> &sampled_edges);
-
-    std::vector<float> estimate_motif_general(
-        const std::vector<long long int> &motifs_cnts, long long int num_sample, long long int W);
-
-    std::map<int,std::function<long long int(std::vector<long long int>&, std::vector<long long int>&, std::vector<long long int>&)>> preprocess_funcs {
-            { 108, std::bind(&GraphSearch::sixNode108PreprocessSamplingWeights, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
-            { 109, std::bind(&GraphSearch::sixNode109PreprocessSamplingWeights, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
-            { 110, std::bind(&GraphSearch::sixNode110PreprocessSamplingWeights, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
-            { 111, std::bind(&GraphSearch::sixNode111PreprocessSamplingWeights, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
-            { 112, std::bind(&GraphSearch::sixNode112PreprocessSamplingWeights, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
-        };
-
-    std::map<int,std::function<bool(
-        int, std::mt19937&, std::unique_ptr<std::discrete_distribution<>>&,
-        std::vector<long long int>*, std::vector<long long int>*, std::vector<Edge>&)>> sample_funcs {
-            { 108, std::bind(&GraphSearch::sample108, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
-            { 109, std::bind(&GraphSearch::sample109, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
-            { 110, std::bind(&GraphSearch::sample110, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
-            { 111, std::bind(&GraphSearch::sample111, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
-            { 112, std::bind(&GraphSearch::sample112, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6)},
-        };
-
-    std::map<int,std::function<std::vector<long long int>(std::vector<Edge> &)>> check_motif_funcs {
-            { 108, std::bind(&GraphSearch::check_motif108, this, std::placeholders::_1)},
-            { 109, std::bind(&GraphSearch::check_motif109, this, std::placeholders::_1)},
-            { 110, std::bind(&GraphSearch::check_motif110, this, std::placeholders::_1)},
-            { 111, std::bind(&GraphSearch::check_motif111, this, std::placeholders::_1)},
-            { 112, std::bind(&GraphSearch::check_motif112, this, std::placeholders::_1)},
-        };
 
     std::vector<Dependency> analyze_spanning_tree(std::vector<std::vector<int>>& spanning_tree);
 
@@ -488,9 +358,6 @@ private:
     // count 3-star
     long long int count_stars(int delta, int id_begin, int id_end);
     long long int count_stars_multi_thread(int delta, int num_of_threads, int partition_per_thread);
-
-    // helper function of find duplicates
-    bool containDuplicates(std::vector<int> list);
 
     // choose num_random of the list between begin and end
     template<class BidiIter > BidiIter random_unique(BidiIter begin, BidiIter end, size_t num_random, unsigned int seed);
