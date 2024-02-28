@@ -9,9 +9,9 @@ CmdArgs::CmdArgs(int argc, char **argv)
     _success = true; // Unless proven otherwise
     _unordered = false; // By default, take chronological ordering into account
     _verbose = false; // verbose print
-    _algo = 0; // test _algorithm only; 0 for baseline, 1 for TEACUPS M1-M7, 2 for TEACUPS M0
+    _algo = 0; // test _algorithm only; 0 for baseline, 1 for STEMMING M1-M7, 2 for STEMMING M0
     num_of_threads = 1; // default use single thread
-    _max_trial = 1e3; // the number of samples to take in TEACUPS 3 path sampling
+    _max_trial = 1e3; // the number of samples to take in STEMMING 3 path sampling
     _need_h = false; // need query file or not
     _delta = 60*60*24; //1D
 
@@ -104,7 +104,7 @@ CmdArgs::CmdArgs(int argc, char **argv)
     {
         _verbose = true;
     }
-    else if(arg == "-algo") // 0: BT baseline, 1: TEACUPS M1-M7, 2: TEACUPS M0
+    else if(arg == "-algo") // 0: BT baseline, 1: STEMMING M1-M7, 2: STEMMING M0
 	{
 	    i++;
 	    if(i == argc)
