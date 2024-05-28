@@ -2380,12 +2380,21 @@ void GraphSearch::sampleSpanningTree(
                             continue;
                         if (dep_edges[m_dep_edge_id].num_dep_edge == 0)
                         {
-                            // uniform sampling the first level edges
-                            vector<int> search_edges_in_range(search_edges_left_it, search_edges_right_it);
-                            // random_unique(search_edges_in_range.begin(), search_edges_in_range.end(), select_n, seed);
-                            // sort(search_edges_in_range.begin(), search_edges_in_range.begin() + select_n);
-                            vector<int> selected = random_select_n(search_edges_in_range, select_n, eng);
-                            sort(selected.begin(), selected.end());
+                            vector<int> selected;
+                            if (select_n > 1)
+                            {
+                                // uniform sampling the first level edges
+                                vector<int> search_edges_in_range(search_edges_left_it, search_edges_right_it);
+                                // random_unique(search_edges_in_range.begin(), search_edges_in_range.end(), select_n, seed);
+                                // sort(search_edges_in_range.begin(), search_edges_in_range.begin() + select_n);
+                                selected = random_select_n(search_edges_in_range, select_n, eng);
+                                sort(selected.begin(), selected.end());
+                            }
+                            else // uniform sample from left_it to right_it
+                            {
+                                int idx = rand_r(&seed) % num_edges;
+                                selected = {*(search_edges_left_it+idx)};
+                            }
                             for(int i = 0; i < select_n; i++)
                             {
                                 int m_dep_edge_id_ith = dep.dep_edges[src_dst][k][i+anchor_idx].index();
