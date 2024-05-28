@@ -1,6 +1,6 @@
-# Accurate and Fast Estimation of Temporal Motifs using Path Sampling
+# STEMMING: Sampling TEmporal Multigraph Motifs IN Graphs
 
-This is the code for the paper "Accurate and Fast Estimation of Temporal Motifs using Path Sampling".
+This is the code for the paper "STEMMING: Sampling TEmporal Multigraph Motifs IN Graphs" (under submission).
 
 ## Build
 
