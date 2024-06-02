@@ -128,7 +128,8 @@ void Graph::disp(int edgeIndex) const
 
 void Graph::forceUpdateOrderedEdges() const
 {
-    this->updateOrderedEdges();
+    if(!_edgesReady)
+        this->updateOrderedEdges();
 }
 
 void Graph::dispDateTimeRange() const

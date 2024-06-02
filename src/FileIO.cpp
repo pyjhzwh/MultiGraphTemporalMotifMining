@@ -481,7 +481,7 @@ DataGraph FileIO::loadGenericGDF(const string &fname)
     DataGraph g;
 
     int lineNum = 0;    
-    bool isNodeData = false, isEdgeData = false;    
+    bool isNodeData = false, isEdgeData = false, isSPTreeData = false;    
     int sourceCol = -1, destCol = -1, timeCol = -1, nameCol = -1;
     int numNodeCols = 0, numEdgeCols = 0;
 
@@ -504,7 +504,7 @@ DataGraph FileIO::loadGenericGDF(const string &fname)
 
         try
         {
-	    if(!isNodeData && !isEdgeData)
+	    if(!isNodeData && !isEdgeData && !isSPTreeData)
 	    {
 		// Look to see if we reached the node data section (probably shouldn't happen)
 		//if(vars[0].size() > 8 && vars[0].substr(0,8) == "nodedef>")
@@ -578,6 +578,13 @@ DataGraph FileIO::loadGenericGDF(const string &fname)
                 
 	    if(isEdgeData)
 	    {	       
+        if (strncmp(vars[0], "spanning_tree>", 14) == 0)
+        {
+            cout << "Reading spanning tree data" << endl;
+            isSPTreeData = true;
+            isEdgeData = false;
+            continue;
+        }
 		if(numVars != numEdgeCols)
 		    throw "Mismatch in number of columns in edge section.";
 
@@ -585,6 +592,17 @@ DataGraph FileIO::loadGenericGDF(const string &fname)
                 FileIO::addAttributeValues(g.edgeAttributesDef(), vars, a);
 		g.addEdge(vars[sourceCol], vars[destCol], atoi(vars[timeCol]), a);
 	    }
+        
+        if (isSPTreeData)
+        {
+            vector<int> level;
+            // add every colums of vars to a vector
+            for(int i = 0; i < numVars; i++)
+            {
+                level.push_back(atoi(vars[i]));
+            }
+            g.addSpanningTree(level);
+        }
               
         }
         catch(exception &e)
@@ -614,8 +632,8 @@ DataGraph FileIO::loadGenericGDF(const string &fname)
     }
     csv.close();
     //cout << "Done reading data" << endl;
-    if(isEdgeData == false)
-        throw "Error reading GDF file. No edgedef> section found.";
+    // if(isEdgeData == false)
+    //     throw "Error reading GDF file. No edgedef> section found.";
 
     return g;
 }

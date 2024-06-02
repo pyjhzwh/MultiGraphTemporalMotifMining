@@ -52,6 +52,8 @@ int main(int argc, char **argv)
             cout << "Searching for query graph in larger data graph" << endl;
         }
         
+        // vector<int> cnts(args.queryFnames().size(), 0);
+        // vector<int> runtimes(args.queryFnames().size(), 0);
         // Try each of the requested query graphs
         for (int i = 0; i < args.queryFnames().size(); i++)
         {
@@ -77,12 +79,14 @@ int main(int argc, char **argv)
             MatchCriteria_DataGraph criteria;
             if (args.verbose())
                 cout << "Filtering data graph to improve query performance." << endl;
-            DataGraph g2;
-            g2.setNodeAttributesDef(g.nodeAttributesDef());
-            g2.setEdgeAttributesDef(g.edgeAttributesDef());
-            GraphFilter::filter(g, h, criteria, g2);
+            // DataGraph g2;
+            // g2.setNodeAttributesDef(g.nodeAttributesDef());
+            // g2.setEdgeAttributesDef(g.edgeAttributesDef());
+            // GraphFilter::filter(g, h, criteria, g2);
+            g.forceUpdateOrderedEdges();
+            h.forceUpdateOrderedEdges();
             int num_of_threads = args.num_of_threads;
-            if (num_of_threads * PARTITION_PER_THREAD > g2.edges().size())
+            if (num_of_threads * PARTITION_PER_THREAD > g.edges().size())
             {
                 num_of_threads = 1;
             }
@@ -101,9 +105,9 @@ int main(int argc, char **argv)
                 double avg_time;
                 t.Start();
                 if (num_of_threads > 1)
-                    results = search.findOrderedSubgraphsMultiThread(g2, h, criteria, limit, delta, num_of_threads, PARTITION_PER_THREAD);
+                    results = search.findOrderedSubgraphsMultiThread(g, h, criteria, limit, delta, num_of_threads, PARTITION_PER_THREAD);
                 else
-                    results = search.findOrderedSubgraphs(g2, h, criteria, limit, delta);
+                    results = search.findOrderedSubgraphs(g, h, criteria, limit, delta);
                 t.Stop();
                 avg_time += t.Seconds();
                 cout << "count for " << queryFname << " : " << results << endl;
@@ -117,10 +121,28 @@ int main(int argc, char **argv)
                 vector<float> results;
                 Timer t;
                 double avg_time = 0;
+                vector<vector<int>> spanning_tree = h.spanning_tree();//{{0,4}, {1}, {3}};
+                if (spanning_tree.size() == 0) // if no spanning tree is provided, use heuristics to generate one
+                {
+                    cout << "No spanning tree provided, using heuristics to generate one" << endl;
+                    spanning_tree = search.analyzeSPTreeSample(h);
+                }
+                // print spanning tree
+                cout << "spanning tree: ";
+                for (int i = 0; i < spanning_tree.size(); i++)
+                {
+                    cout << "{";
+                    for (int j = 0; j < spanning_tree[i].size(); j++)
+                    {
+                        cout << spanning_tree[i][j] << ", ";
+                    }
+                    cout << "},";
+                }
+                cout << endl;
                 t.Start();
-                vector<vector<int>> spanning_tree = search.analyzeSPTreeSample(h); //{{4, 9} ,{0}};
+                // vector<vector<int>> spanning_tree = search.analyzeSPTreeSample(h); //{{4, 9} ,{0}};
                 results = search.SpanningTreeSample(
-                    g2, h, num_of_threads, PARTITION_PER_THREAD, delta, max_trial, spanning_tree);
+                    g, h, num_of_threads, PARTITION_PER_THREAD, delta, max_trial, spanning_tree);
                 t.Stop();
                 avg_time += t.Seconds();
                 cout << "count for " << queryFname << " : " << results[0] << endl;

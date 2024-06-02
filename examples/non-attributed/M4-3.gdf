@@ -11,3 +11,6 @@ edgedef> node1 INT, node2 INT, time INT
 1, 2, 4
 2, 3, 5
 3, 1, 6
+spanning_tree>
+0, 5
+3

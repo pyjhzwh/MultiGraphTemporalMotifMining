@@ -21,6 +21,7 @@ public:
     virtual void addEdge(int u, int v, time_t dateTime) override;
     virtual void addEdge(const std::string &source, const std::string &dest, time_t dateTime, const Attributes &a);
     virtual void copyEdge(int edgeIndex, const Graph &g) override;
+    virtual void addSpanningTree(std::vector<int>& level);
     virtual void setNodeAttributesDef(const AttributesDef &def);
     virtual void setEdgeAttributesDef(const AttributesDef &def);
     //virtual void setNodeAttributes(int v, const Attributes &attributes);
@@ -34,6 +35,7 @@ public:
     const std::vector<Attributes> &edgeAttributes() const;
     const AttributesDef &nodeAttributesDef() const;
     const AttributesDef &edgeAttributesDef() const;
+    const std::vector<std::vector<int>> &spanning_tree() const;
     //const std::vector<std::string> &nodeAttributeNames() const;
     //const std::vector<std::string> &edgeAttributeNames() const;
 
@@ -47,6 +49,7 @@ private:
     std::vector<Attributes> _nodeAttributes;
     std::map<time_t,std::vector<Attributes>> _timeEdgeAttributesMap;
     mutable std::vector<Attributes> _edgeAttributes;
+    std::vector<std::vector<int>> _spanning_tree;
 };
 
 #endif

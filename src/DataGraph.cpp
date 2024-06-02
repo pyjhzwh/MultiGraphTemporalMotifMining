@@ -113,6 +113,16 @@ const AttributesDef &DataGraph::nodeAttributesDef() const { return _nodeAttribut
 
 const AttributesDef &DataGraph::edgeAttributesDef() const { return _edgeAttributesDef; }
 
+void DataGraph::addSpanningTree(std::vector<int>& level)
+{
+    _spanning_tree.push_back(level);
+}
+
+const std::vector<std::vector<int>> &DataGraph::spanning_tree() const
+{
+    return _spanning_tree;
+}
+
 DataGraph DataGraph::createSubGraph(const std::vector<GraphMatch> &matches) const
 {
     DataGraph g;
