@@ -2829,9 +2829,9 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
     t.Start();
     long long int W = preprocess(spanning_tree, dep_edges, e_sampling_weights);
     t.Stop();
-    cout << "preprocess time: " << t.Seconds() << endl;
+    // cout << "preprocess time: " << t.Seconds() << endl;
 
-    cout << "W: " << W << endl;
+    // cout << "W: " << W << endl;
 
     long long int motif_cnt = 0;
     long long int valid_sp_cnt = 0;
@@ -2874,10 +2874,10 @@ vector<float> GraphSearch::SpanningTreeSample(const Graph &g, const Graph &h,
             max_trial, e_sampling_weights, spanning_tree, flattened_spanning_tree, dep_edges, sp_tree_range_edges, valid_sp_cnt, nz_sp_cnt);
     }
     t.Stop();
-    cout << "sample time: " << t.Seconds() << endl;
-    cout << "valid_sp_cnt: " << valid_sp_cnt << endl;
-    cout << "nz_sp_cnt: " << nz_sp_cnt << endl;
-    cout << "motif_cnt: " << motif_cnt << endl;
+    // cout << "sample time: " << t.Seconds() << endl;
+    // cout << "valid_sp_cnt: " << valid_sp_cnt << endl;
+    // cout << "nz_sp_cnt: " << nz_sp_cnt << endl;
+    // cout << "motif_cnt: " << motif_cnt << endl;
 
     float_t W_div_k = (float_t) W / max_trial;
     float estimated_cnt = (float) motif_cnt  * W_div_k;
