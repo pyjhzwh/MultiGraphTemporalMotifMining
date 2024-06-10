@@ -23,6 +23,3 @@ These are verified correctness links:
 
 - email-Eu-core: [https://snap.stanford.edu/data/email-Eu-core-temporal.txt.gz](https://snap.stanford.edu/data/email-Eu-core-temporal.txt.gz)
 - CollegeMsg: [https://snap.stanford.edu/data/CollegeMsg.txt.gz](https://snap.stanford.edu/data/CollegeMsg.txt.gz)
-
-
--- Haojie

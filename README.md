@@ -1,6 +1,6 @@
-# STEMMING: Sampling TEmporal Multigraph Motifs IN Graphs
+# Accurate and Fast Estimation of Temporal Motifs using Path Sampling
 
-This is the code for the paper "STEMMING: Sampling TEmporal Multigraph Motifs IN Graphs" (under submission).
+This is the code for the paper "Accurate and Fast Estimation of Temporal Motifs using Path Sampling" (under submission).
 
 ## Build
 
@@ -22,7 +22,7 @@ It will compile to an executable file `graph_search`.
 * -g: path to input graph (required)
 * -q: path to motif graph (required)
 * -delta: 1M(minute), 1H (hour), 1D (day), 1W(week), ... or just the number like 86400, the default unit is seconds
-* -algo: 0, 1, 2; 0 means running the backtracking exact count baseline [BT](https://ieeexplore.ieee.org/abstract/document/8622100); 1 means running the sampling-based algorithm; 2 means running the BT + derivecnts algorithm
+* -algo: 0, 1; 0 means running the backtracking exact count baseline [BT](https://ieeexplore.ieee.org/abstract/document/8622100); 1 means running the sampling-based algorithm;
 * -thread: thread number, default value is 1
 * -max_trial: the number of samples to take in STEMMING 3-path-sampling algorithm, only takes effect for algo=1; default value is "1e3". Note if you use scientific notation, make sure surround the number by "".
 
@@ -54,12 +54,6 @@ edge 8 has 0 dependencies.
 sp_tree_range_edges: 
 [ 0,4 ] : 1, 2, 3, 
 [ 4,-1 ] : 5, 6, 7, 8, 
-preprocess time: 0.160658
-W: 205292969
-sample time: 10.9103
-valid_sp_cnt: 47149084
-nz_sp_cnt: 6756
-motif_cnt: 124608649
 count for ./examples/non-attributed/M3-1.gdf : 2.55813e+08
 Sampling runtime(s): 11.0727 s.
 ```
@@ -68,13 +62,13 @@ Sampling runtime(s): 11.0727 s.
 
 <!-- To reproduce the estimated counts and runtime of STEMMING 3-path sampling for M1-M7, and counts and runtime of efficient counting M0 -->
 To reproduce the runtime and counts for BT and STEMMING, run `python reproduce.py`.
-`RUN_STEMMING`, `RUN_STEMMING_BT` and `RUN_BT` are boolean variables to decide whether to run STEMMING, BT+derivetns and BT, respectively. Be aware to set `RUN_STEMMING_BT=True` or `RUN_BT = True` because BT takes days or weeks.
+`RUN_STEMMING` and `RUN_BT` are boolean variables to decide whether to run STEMMING, BT+derivetns and BT, respectively. Be aware to set `RUN_BT = True` because BT takes days or weeks.
 The path to the directory of input graphs and motifs can be set in `GRAPH_DIR` and `MOTIF_DIR`, respectively.
 
 Part of the sample output of `python reproduce.py` is as follows:
 ```
 graph=wiki-talk-temporal, delta=4W
-                     |    M3-1   |   M3-2   |   M4-1   |   M4-2   |   M4-3   |   M4-4   
-STEMMING cnt         |   6.37e+11|  8.95e+11|  8.18e+12|  2.47e+10|  1.33e+11|  3.74e+11
-STEMMING runtime (s) |      10.79|     12.59|     46.15|     23.26|     13.32|     11.31
+                     |    M3-0   |   M3-1   |   M4-0   |   M4-1   |   M4-2   |   M4-3   |   M4-4   |   M4-5   
+STEMMING cnt         |   6.29e+11|  8.60e+11|  3.00e+08|  8.68e+12|  2.87e+10|  1.34e+11|  3.52e+11|  1.16e+09
+STEMMING runtime (s) |      10.40|     10.31|      4.42|     11.88|     13.01|     12.49|     12.45|     12.85
 ```
