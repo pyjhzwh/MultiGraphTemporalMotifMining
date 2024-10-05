@@ -1,6 +1,8 @@
 # Accurate and Fast Estimation of Temporal Motifs using Path Sampling
 
-This is the code for the paper "Accurate and Fast Estimation of Temporal Motifs using Path Sampling" (under submission).
+This is the code for the paper "Accurate and Fast Estimation of Temporal Motifs using Path Sampling" (ICDM'24).
+The camera-ready paper for ICDM'24 is coming soon.
+For author's version, please refer to: https://arxiv.org/abs/2409.08975
 
 ## Build
 
